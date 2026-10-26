@@ -14,16 +14,22 @@ the street wall from the real Lyon Street view:
 - inside, behind a big revolving glass door (brass frame, slowly turning) in
   the middle of the lobby wall: the Amway lobby — gold marble floor, the
   dome with its gold ceiling, dark wood ring and brass bowl chandelier, the
-  round blue rug with a pedestal table of flowers and stanchions, the wood
-  check-in desk on the left and "THE PANTLIND" corridor ahead. A passage on
+  round blue rug with a pedestal table of flowers and stanchions, and the
+  wood check-in desk against the far wall, straight ahead. To the left, under
+  "THE PANTLIND" arch, a Victorian hallway (damask wallpaper, wood
+  wainscoting, gilt-framed paintings, brass sconces and chandeliers, a
+  patterned runner, arches) runs back and up a gentle ramp into the
+  hospitality addition's lower gallery through a doorway in its window wall
+  (the doorway is cut from its meshes and contacts at load). A passage on
   the right leads into the restaurant behind the glass entrance: herringbone
   floor, white stacked columns along the windows, a bar with white stools and
   gold-mesh wine cabinets, marble tables with gray chairs, the wave mural, a
   mezzanine with a glass railing and purple cove lighting. The rooms have
   their own lights (on day and night); the drive-through is red brick from
   the curb to the lobby wall (the park path under it is trimmed out);
-- ten glass floors on top of the hospitality addition, matching the Amway
-  glass tower;
+- the Amway glass tower on top of the hospitality addition: 31 floors of
+  pale reflective glass with thin mullions, a ledge below the crown and a
+  row of dark openings at the top;
 - a skywalk (stained concrete, dark glass barrel vault with white ribs) over
   westbridge from the older hotel to the building opposite;
 - the brick hotel tower and the older stone-and-brick hotel to the right,

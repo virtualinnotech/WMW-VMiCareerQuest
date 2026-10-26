@@ -38,9 +38,11 @@ window.Hospitality140=(()=>{
   for(const n of j.nodes)for(const pr of j.meshes[n.mesh].primitives){const p=accessor(j,bin,pr.attributes.POSITION),normal=accessor(j,bin,pr.attributes.NORMAL),v=new Float32Array(p.length*2),m=j.materials[pr.material],pbr=m.pbrMetallicRoughness;
    for(let i=0;i<p.length;i+=3)v.set([...p.subarray(i,i+3),...normal.subarray(i,i+3)],i*2);
    const bounds=boundPoints(p),center=bounds.lo.map((a,i)=>(a+bounds.hi[i])/2);
-   renderBatches.push(uploadBatch(v,accessor(j,bin,pr.indices),{name:n.name,hospitality140:true,roof:!!n.extras?.roof,uv:accessor(j,bin,pr.attributes.TEXCOORD_0),baseTexture:images.get(pr.material),color:pbr.baseColorFactor,metal:pbr.metallicFactor,rough:pbr.roughnessFactor,emission:m.emissiveFactor||[0,0,0],transparent:m.alphaMode==='BLEND',center,cullRadius:len(sub(bounds.hi,bounds.lo))/2}));
+   // The Victorian hallway (westfront172) opens a doorway in the north wall.
+   let data=v,index=accessor(j,bin,pr.indices),texcoord=accessor(j,bin,pr.attributes.TEXCOORD_0);const cut=window.WestFrontCore172?.cutHospitality(data,index,texcoord,bounds);if(cut){data=cut.data;index=cut.idx;texcoord=cut.uv;}
+   renderBatches.push(uploadBatch(data,index,{name:n.name,hospitality140:true,roof:!!n.extras?.roof,uv:texcoord,baseTexture:images.get(pr.material),color:pbr.baseColorFactor,metal:pbr.metallicFactor,rough:pbr.roughnessFactor,emission:m.emissiveFactor||[0,0,0],transparent:m.alphaMode==='BLEND',center,cullRadius:len(sub(bounds.hi,bounds.lo))/2}));
   }
-  meta.contacts.forEach(contact);
+  (window.WestFrontCore172?.hospitalityContacts(meta.contacts)??meta.contacts).forEach(contact);
   // Shared cube buffers keep the two moving flights inexpensive to render.
   const mesh=createCube(),N=38;
   for(const lane of C.escalators)for(let i=0;i<N;i++)for(const edge of [false,true]){const b={...mesh,color:edge?[.92,.62,.10,1]:[.30,.33,.34,1],metal:edge?0:.55,rough:.65,center:C.point(lane,C.bottom,C.ground),hospitality140:true,sceneInstance:true,sharedKey:'hospitality140:step:'+edge,cullRadius:.7,modelMatrix:identity()};renderBatches.push(b);steps.push({b,lane,i,N,edge});}
