@@ -101,7 +101,14 @@ window.Scooter100=(()=>{
  };
  const rz=a=>[Math.cos(a),Math.sin(a),0,0,-Math.sin(a),Math.cos(a),0,0,0,0,1,0,0,0,0,1];
  const lean=()=>[Math.round(leanX/ .006)*.006,Math.round(leanZ/ .006)*.006];
- const baseActorMatrix=actorMatrix;actorMatrix=function(a){if(!mounted||!a.player)return baseActorMatrix(a);const s=a.model.scale/S,[pitch,roll]=lean(),tilt=mm(mm(transform([0,.85,0],[1,1,1],pitch),rz(roll)),transform([0,-.85,0]));return mm(mm(mm(mm(root(),transform(ride().offset)),tilt),transform([0,0,0],[s,s,s])),transform(a.model.offset));};
+ // Kid riders (178) are smaller than the adult the ride poses were fitted to.
+ // On a bike the kid sits up on the saddle (hips where an adult's would be)
+ // and reaches for the pedals; on a Segway or scooter the feet stay on the
+ // deck at the kid's own ankle height and stance.
+ const kidRatio178=a=>Math.min(1,a.model.scale*(a.model.hi[1]-a.model.lo[1])/CHARACTER_HEIGHT);
+ function riderOffset178(a){const o=ride().offset,k=kidRatio178(a);if(ride().kind!=='bike'||k>=1)return o;const height=a.model.scale*(a.model.hi[1]-a.model.lo[1])/S;return [o[0],o[1]+.53*height*(1/k-1),o[2]];}
+ function kidAnchor178(a,limb,anchor){const k=kidRatio178(a),o=ride().offset;if(limb!=='leg'||ride().kind==='bike'||k>=1)return anchor;return anchor.map((v,i)=>o[i]+(v-o[i])*k);}
+ const baseActorMatrix=actorMatrix;actorMatrix=function(a){if(!mounted||!a.player)return baseActorMatrix(a);const s=a.model.scale/S,[pitch,roll]=lean(),tilt=mm(mm(transform([0,.85,0],[1,1,1],pitch),rz(roll)),transform([0,-.85,0]));return mm(mm(mm(mm(root(),transform(riderOffset178(a))),tilt),transform([0,0,0],[s,s,s])),transform(a.model.offset));};
  const travel=teleport;teleport=function(...args){if(mounted)dismount(true);return travel(...args);};
  const qmul=([x,y,z,w],[a,b,c,d])=>[w*a+x*d+y*c-z*b,w*b-x*c+y*d+z*a,w*c+x*b-y*a+z*d,w*d-x*a-y*b-z*c];
  const qrotate=(q,v)=>qmul(qmul(q,[...v,0]),[-q[0],-q[1],-q[2],q[3]]).slice(0,3);
@@ -117,7 +124,7 @@ window.Scooter100=(()=>{
   for(const [si,side]of ['Left','Right'].entries())for(const limb of ['arm','leg']){
    const end=find(side,limb==='arm'?'Hand':'Foot'),contact=limb==='arm'?(find(side,'HandMiddle1')>=0?find(side,'HandMiddle1'):find(side,'HandIndex1')):end,chain=limb==='arm'?[find(side,'ForeArm'),find(side,'Arm')]:[find(side,'Leg'),find(side,'UpLeg')];if(end<0||contact<0||chain.some(i=>i<0))continue;
    const grip=BikeData128.fit?.grip||[.295,1.291,.398];
-   const anchor=ride().kind==='bike'?(limb==='arm'?[si===0?grip[0]:-grip[0],grip[1],grip[2]]:[si===0?.155:-.155,.34,si===0?.10:-.10]):isSegway(activeId)?(limb==='arm'?[si===0?.16:-.16,1.24,.323]:[si===0?.15:-.15,.345,-.035]):(limb==='arm'?[si===0?.195:-.195,1.205,.218]:[si===0?.045:-.045,.285,si===0?.055:-.245]),targetWorld=tp(root(),...anchor);
+   const anchor=ride().kind==='bike'?(limb==='arm'?[si===0?grip[0]:-grip[0],grip[1],grip[2]]:[si===0?.155:-.155,.34,si===0?.10:-.10]):isSegway(activeId)?(limb==='arm'?[si===0?.16:-.16,1.24,.323]:[si===0?.15:-.15,.345,-.035]):(limb==='arm'?[si===0?.195:-.195,1.205,.218]:[si===0?.045:-.045,.285,si===0?.055:-.245]),targetWorld=tp(root(),...kidAnchor178(a,limb,anchor));
    let target=add(tp(inverse,...targetWorld),correction),handRotation=null;
    if(limb==='arm'){
     const origin=tp(inverse,...tp(root(),0,0,0)),direction=v=>norm(sub(tp(inverse,...tp(root(),...v)),origin)),desired=direction([0,-.2,1]);

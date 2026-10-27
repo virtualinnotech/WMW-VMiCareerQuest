@@ -21,9 +21,9 @@ window.Fall173=(()=>{
  async function load(){
   try{
    while(!characterState.player?.model)await new Promise(r=>setTimeout(r,500));
-   // Each player rig has its own retargeted copy (player_boy-fall.json for the boy).
-   const model=characterState.player.model,url=model.j.extras?.player177?.falls||'./fall173/brad-fall.json';
-   const response=await fetch(url+'?v=178');if(!response.ok)throw Error('Fall animation missing');
+   // Each player rig has its own retargeted copy (player_boy-fall.json for the denim boy, kid01-fall.json and on for the kids).
+   const model=characterState.player.model,url=model.j.extras?.player177?.falls||(/^kid0[1-8]$/.test(model.id)?'./fall173/'+model.id+'-fall.json':'./fall173/brad-fall.json');
+   const response=await fetch(url+'?v=179');if(!response.ok)throw Error('Fall animation missing');
    attach(model,await response.json());ready=true;
   }catch(e){error=e.message;console.warn('Fall173',e.message);}
  }

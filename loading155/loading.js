@@ -21,9 +21,9 @@ window.Loading155=(()=>{
  async function bounded(promise,ms,message){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(message)),ms);})]);}finally{clearTimeout(timer);}}
  let blocked=true,failed=null,mounted=false,mountedAt=0,box,bar,text,slides,place,retry,slideTimer,displayTimer,observer,sequence=0,slide=0,animation=null,artReady;
  const inert=new Map(),history=[];
- function shield(node){if(!(node instanceof HTMLElement)||node===box||['SCRIPT','STYLE','LINK'].includes(node.tagName))return;if(!inert.has(node))inert.set(node,node.inert);node.inert=true;}
+ function shield(node){if(!(node instanceof HTMLElement)||node===box||node.hasAttribute('data-loading-allow')||['SCRIPT','STYLE','LINK'].includes(node.tagName))return;if(!inert.has(node))inert.set(node,node.inert);node.inert=true;}
  function blockInput(e){
-  if(!blocked||e.target?.closest?.('#loading')||e.metaKey||e.ctrlKey)return;
+  if(!blocked||e.target?.closest?.('#loading,[data-loading-allow]')||e.metaKey||e.ctrlKey)return;
   e.preventDefault();e.stopImmediatePropagation();
  }
  for(const type of ['keydown','keyup','pointerdown','pointermove','pointerup','mousedown','mousemove','mouseup','click','dblclick','wheel','touchstart','touchmove'])window.addEventListener(type,blockInput,{capture:true,passive:false});

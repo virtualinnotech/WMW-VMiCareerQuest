@@ -14,7 +14,7 @@
 window.Journey166=(()=>{
  const LOCAL='mcqJourney166',PENDING='mcqJourneyPending166';
  // Everything that is the student's own progress, as kept in this browser.
- const KEYS={rewards:'mcqScooterReward_v1',pcCollection:'micq.pc-builder66.collection.v1',pcShowcase:'micq.pc-builder66.showcase.v1',hotelBest:'mcqHotelBest146',tour:'mcqOnboardingDone_v1'};
+ const KEYS={rewards:'mcqScooterReward_v1',pcCollection:'micq.pc-builder66.collection.v1',pcShowcase:'micq.pc-builder66.showcase.v1',hotelBest:'mcqHotelBest146',tour:'mcqOnboardingDone_v1',character:'mcqCharacter179'};
  const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}}};
  const pretty=c=>c?c.slice(0,4)+'-'+c.slice(4):'';
  let journey=null;try{journey=JSON.parse(store.get(LOCAL)||'null');if(!journey?.code)journey=null;}catch(e){journey=null;}
@@ -202,9 +202,44 @@ window.Journey166=(()=>{
   if(performance.now()-remindedAt<120000)return;remindedAt=performance.now();panel(true);
  });
 
+ // ---- for the home page (home179), which now starts and resumes journeys ----
+ // A new journey for this student and character. A journey already on this
+ // computer is sent first and stays saved under its own code.
+ async function startNew(student,character){
+  if(journey){await flush();clearTimeout(timer);ready=false;remember(null);}
+  apply(null);store.set(PENDING,null);store.set(KEYS.character,character);
+  let r;try{r=await fetch('/api/journey/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...student,data:collect(),percent:0})});}catch(e){return {offline:true};}
+  const body=await r.json().catch(()=>({}));if(!r.ok)return r.status>=500?{offline:true}:{error:body.error||'Something went wrong. Try again.'};
+  remember({code:body.code,firstName:body.firstName,lastInitial:body.lastInitial,school:body.school});lastSent=null;setStatus('saved');
+  return {code:pretty(body.code)};
+ }
+ async function resumeCode(code){
+  let r;try{r=await fetch('/api/journey?code='+code,{cache:'no-store'});}catch(e){return {error:'The fair server can\'t be reached. Check the internet and try again.'};}
+  const body=await r.json().catch(()=>({}));if(!r.ok)return {error:body.error||'Something went wrong. Try again.'};
+  clearTimeout(timer);ready=false;remember({code:body.code,firstName:body.firstName,lastInitial:body.lastInitial,school:body.school});apply(body.data);lastSent=payload();store.set(PENDING,null);setStatus('saved');
+  return {firstName:body.firstName};
+ }
+ // This computer's journey: send its unsent changes, or take the server's newer copy.
+ async function continueLocal(){
+  if(!journey||store.get(PENDING)==='1')return;
+  try{const r=await fetch('/api/journey?code='+journey.code,{cache:'no-store'});const body=await r.json();if(r.ok){apply(body.data);lastSent=payload();store.set(PENDING,null);setStatus('saved');}else if(r.status===404)setStatus('missing');}
+  catch(e){setStatus('offline');}
+ }
+
  return {
-  // Called once the venue has loaded, before the screen tour.
-  begin(next){if(skip()){next();return;}ensureUI();renderChip();onDone=next;if(journey)welcomeBack();else choose();},
+  // Called once the venue has loaded, before the screen tour. With the home
+  // page, the student already started or resumed a journey there.
+  begin(next){
+   if(skip()){next();return;}ensureUI();renderChip();
+   if(window.Home179&&!Home179.skipped){const before=state.paused;state.paused=true;Home179.done.then(r=>{state.paused=before;keys.clear();lastTime=performance.now();if(r?.welcome)toast(r.welcome);next();});return;}
+   onDone=next;if(journey)welcomeBack();else choose();
+  },
+  get local(){return journey?{...journey}:null;},
+  startNew,resume:resumeCode,continueLocal,
+  withoutSaving(character){clearTimeout(timer);ready=false;remember(null);store.set(KEYS.character,character);},
+  // Start saving: the student has confirmed who they are on the home page.
+  adopt(returning){if(returning)store.set(KEYS.tour,'1');finished=false;ready=!!journey;queue(500);},
+  saveSoon:()=>queue(),
   open:()=>panel(),
   get code(){return journey?.code||null;},get prettyCode(){return journey?pretty(journey.code):null;},
   snapshot:()=>({journey,status,finished,active,skipped:skip()})

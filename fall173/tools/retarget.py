@@ -12,7 +12,7 @@ bones=[n for n in (j['nodes'][i]['name'] for i in j['skins'][0]['joints'])]
 short=lambda n:n.split(':')[-1]
 def wq(i):return mat_to_quat(W[i])   # x,y,z,w
 def b2g(q):w,x,y,z=q;return qnorm([x,z,-y,w])   # Blender (w,x,y,z) -> glTF (x,y,z,w), axes (x,z,-y)
-arm=par[idx['mixamorig:Hips']];armQ=wq(arm);armS=math.sqrt(sum(W[arm][r][0]**2 for r in range(3)))
+arm=par[idx['mixamorig:Hips']];armQ=wq(arm);armS=math.sqrt(sum(W[arm][r][0]**2 for r in range(3)));armT=[W[arm][r][3] for r in range(3)]   # a raised rig (players177 kids) has a root offset
 restT={b:wq(idx[b]) for b in bones}
 hip0=[W[idx['mixamorig:Hips']][r][3] for r in range(3)]
 # feet height in the target's bind space (Brad stands on 0; some exports are centred)
@@ -36,7 +36,7 @@ def convert(name,src,first,last):
         out_rot.append(row)
         dp=[a-b for a,b in zip(fr['hips'],PS0)];dg=[dp[0]*k,dp[2]*k,-dp[1]*k]
         wp=[hip0[i]+dg[i] for i in range(3)]
-        lp=qrot(qinv(armQ),wp);lp=[v/armS for v in lp];out_hips.append(lp)
+        lp=qrot(qinv(armQ),[wp[i]-armT[i] for i in range(3)]);lp=[v/armS for v in lp];out_hips.append(lp)
     return {'fps':d['fps'],'frames':len(out_rot),'bones':bones,'rot':out_rot,'hips':out_hips}
 clips={'fall':convert('fall',D+'/fall.json',6,62),'getup':convert('getup',D+'/getting_up.json',1,66)}
 # forward-kinematics check on Brad with the retargeted local rotations

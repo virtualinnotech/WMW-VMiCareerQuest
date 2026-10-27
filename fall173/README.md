@@ -35,3 +35,7 @@ boy's skeleton (players177). `retarget.py` now takes the target GLB and
 output path, and measures the hip drop from the target's feet, so rigs that
 are centred on the hips land on the floor. Retarget against the built
 `players177/player_boy.glb` (see players177/README.md).
+
+`kid01-fall.json` to `kid08-fall.json` are the same clips retargeted to each
+of the eight kids on the character select page (players177/kidNN.glb);
+fall.js picks the file by the player's model.

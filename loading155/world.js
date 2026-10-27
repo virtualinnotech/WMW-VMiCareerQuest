@@ -2,7 +2,9 @@
 Loading155.prepareWorld=async function(){
  const L=Loading155,snapshot=name=>(name==='Stables52'?Stables52:window[name])?.snapshot(),status=name=>{const s=snapshot(name);return {ready:s?.ready||s?.status==='ready',error:s?.error};};
  const watches=[
-  L.watch('characters',()=>({ready:characterState.status==='ready',error:characterState.error})),
+  // The player is made once the student has chosen a character on the home
+  // page, which can take a while: this one waits up to three hours.
+  L.watch('characters',()=>({ready:characterState.status==='ready'&&characterState.playerReady,error:characterState.error}),{timeout:3*3600000}),
   L.watch('crowd',()=>({ready:crowdState.status==='ready'&&CrowdGraphics.ready,error:crowdState.error})),
   L.watch('staff',()=>{const s=EventFlow22.snapshot();return {ready:s.enabled&&!s.loading,error:s.error};},{when:()=>crowdState.status==='ready',start:()=>EventFlow22.load()}),
   // Street people use the crowd's walking characters. With a full venue of

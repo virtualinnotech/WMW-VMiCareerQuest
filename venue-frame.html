@@ -8,9 +8,10 @@ for(const name of ['localStorage','sessionStorage'])try{window[name].getItem('mc
 </script>
 <script src="./desktop141/device.js?v=141"></script>
 <link rel="stylesheet" href="./loading155/loading.css?v=158">
+<link rel="stylesheet" href="./home179/home.css?v=20261027-home179">
 <link rel="preload" as="image" href="./loading155/art/front-entrance.webp">
 <link rel="preload" as="image" href="./loading155/title158.png">
-<script src="./loading155/loading.js?v=20261021-fin162"></script>
+<script src="./loading155/loading.js?v=20261027-home179"></script>
 <script src="./booth-layout139.js?v=20261019-hotel146"></script>
 <script src="./hotel146/core.js?v=20261020-hotel154"></script>
 <script src="./hospitality140/core.js?v=143"></script>
@@ -164,6 +165,8 @@ body>header .brand img{display:block;width:220px;height:auto;aspect-ratio:904/17
  </div><div id="spinner" hidden></div>
 </div>
 <script>Loading155.mount();</script>
+<script src="./home179/home.js?v=20261027-home179"></script>
+<script>Home179.mount();</script>
 
 <div id="skillHud" aria-hidden="true"><div id="skillHudRows"></div></div>
 
@@ -319,7 +322,7 @@ function initRenderer(){
  uniform bool uOutfitOn;uniform int uOutfitRole;uniform int uAccessory;
 uniform bool uRoleMapped;uniform highp sampler2D uRoleMap;uniform sampler2D uBaseMap;uniform bool uMapped;uniform sampler2D uNormalMap;uniform bool uNormalMapped;uniform float uNormalScale;
  uniform vec4 uLogoRect;uniform float uLogoFrontZ;uniform bool uForceOpaque;uniform bool uLogoMapped;uniform sampler2D uLogoMap;
- uniform float uAlphaCutoff;uniform vec4 uColor;uniform vec3 uEmission;uniform vec3 uCamera;
+ uniform float uAlphaCutoff;uniform vec4 uColor;uniform vec3 uEmission;uniform vec3 uCamera;uniform vec4 uGrade178;
  uniform float uMetal;uniform float uRough;uniform float uUnlit;uniform float uSurface;
  uniform sampler2D uSkyMap;uniform float uCityAtmosphere;uniform vec3 uSunDirection;uniform float uCityTime;
  uniform mat4 uLightVP;uniform highp sampler2DShadow uShadowMap;uniform float uShadowOn;
@@ -346,6 +349,8 @@ uniform bool uRoleMapped;uniform highp sampler2D uRoleMap;uniform sampler2D uBas
  for(int y=-1;y<=1;y+=2)for(int x=-1;x<=1;x+=2)t+=texture(map,vec3(q.xy+vec2(x,y)*texel*.65,q.z-bias));return t*.25;}
  float visibility(vec3 n,vec3 light){if(uShadowOn<.5)return 1.;return min(mix(solarVisibility132(uShadowMap,uLightVP,n,light),solarVisibility132(uShadowNext132,uLightNext132,n,light),uSunBlend132),movingVisibility129(vPosition,n,light));}
  vec3 linearToSRGB(vec3 v){return mix(12.92*v,1.055*pow(max(v,vec3(0.)),vec3(1./2.4))-.055,step(vec3(.0031308),v));}
+ // Color grade (178), on display colors: x saturation, y mid-tone lift (whites never clip), z contrast.
+ vec3 grade178(vec3 c){c=clamp(c,0.,1.);float l=dot(c,vec3(.2126,.7152,.0722));c=clamp(mix(vec3(l),c,uGrade178.x),0.,1.);c=1.-pow(1.-c,vec3(uGrade178.y));return mix(c,c*c*(3.-2.*c),uGrade178.z);}
  // Room-bounded indirect overhead fill. Probe toward the visible surface normal
  // so inward wall faces receive fill while exterior faces and roof tops do not.
  float roomWeight135(vec3 p,int i,float floorFace){
@@ -396,7 +401,7 @@ uniform bool uRoleMapped;uniform highp sampler2D uRoleMap;uniform sampler2D uBas
  if(uLogoMapped&&uOutfitOn&&vOutfitFlags.z>.5&&garment==1&&vBindPosition.z>=uLogoFrontZ&&all(greaterThanEqual(vBindPosition.xy,uLogoRect.xy))&&all(lessThanEqual(vBindPosition.xy,uLogoRect.xy+uLogoRect.zw))){vec4 ink=texture(uLogoMap,vUV);vec3 inkLinear=mix(ink.rgb/12.92,pow((ink.rgb+.055)/1.055,vec3(2.4)),step(vec3(.04045),ink.rgb));surfaceBase=mix(surfaceBase,inkLinear,ink.a);}
  vec3 n=normalize(vNormal);if(!gl_FrontFacing)n=-n;vec3 v=normalize(uCamera-vPosition);
  vec3 macroNormal135=n;float floorFace135=step(.7,n.y);
- if(uUnlit>.5){outColor=vec4(linearToSRGB(uUnlit>1.5?sky(normalize(vPosition-uCamera)):surfaceBase),uColor.a*sampled.a);return;}
+ if(uUnlit>.5){outColor=vec4(grade178(linearToSRGB(uUnlit>1.5?sky(normalize(vPosition-uCamera)):surfaceBase)),uColor.a*sampled.a);return;}
  vec2 normalUV=uSurface==19.?materialUV:vNormalUV147;
  vec4 detail=uNormalMapped?texture(uNormalMap,normalUV):vec4(.5,.5,1.,0.);
  if(uNormalMapped){vec3 p1=dFdx(vPosition),p2=dFdy(vPosition);vec2 t1=dFdx(normalUV),t2=dFdy(normalUV);vec3 r1=cross(p2,n),r2=cross(n,p1),T=r1*t1.x+r2*t2.x,B=r1*t1.y+r2*t2.y;float inv=inversesqrt(max(max(dot(T,T),dot(B,B)),1e-10));vec3 b=detail.xyz*2.-1.;b.xy*=uNormalScale;n=normalize(mat3(T*inv,B*inv,n)*b);}
@@ -548,7 +553,7 @@ uniform bool uRoleMapped;uniform highp sampler2D uRoleMap;uniform sampler2D uBas
  float peak134=max(lit.r,max(lit.g,lit.b));
  float shoulder134=peak134>.85?.85+.15*(1.-exp(-(peak134-.85)/.3)):peak134;
  lit=mix(dayTone134,lit*(shoulder134/max(peak134,.00001)),uNight131);
- outColor=vec4(clamp(linearToSRGB(lit),0.,1.),alpha);
+ outColor=vec4(grade178(linearToSRGB(lit)),alpha);
  }`;
  program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);
  if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
@@ -655,7 +660,7 @@ function walkingPose132(){
 }
 function updateCamera(dt,immediate=false){
  if(state.overview){camera=[...state.overview.camera];target=[...state.overview.target];return;}
- const walking=walkingPose132(),head=add(walking.position,[0,.52*PLAYER_SCALE,0]);
+ const walking=walkingPose132(),head=add(walking.position,[0,playerHeadLift178(),0]);
  if(state.firstPerson){target=add(head,[-Math.sin(walking.yaw+state.orbitYaw)*Math.cos(state.pitch),Math.sin(state.pitch),-Math.cos(walking.yaw+state.orbitYaw)*Math.cos(state.pitch)]);camera=head;return;}
  const angle=walking.yaw+state.orbitYaw,dir=norm([Math.sin(angle)*Math.cos(state.pitch),Math.sin(state.pitch)+.23,Math.cos(angle)*Math.cos(state.pitch)]),desired=state.radius;
  const hit=raycast(head,dir,desired,o=>!o.boundary);const radius=hit?Math.max(.15*PLAYER_SCALE,hit.distance-.18*PLAYER_SCALE):desired;
@@ -784,7 +789,15 @@ function frameBatches164(planes){
  }
  return {opaque,transparent:seeThrough.sort((x,y)=>y.d-x.d).map(x=>x.b)};
 }
-function render(){if(!state.ready||!gl||gl.isContextLost())return;if(window.CharacterInspector?.active){CharacterInspector.draw();return;}window.CityLife111?.present();CityLighting131.frame();StreetProps128.frame();Hospitality140.frame();if(!window.FarmScene63?.active)updateSunShadows();updateRenderBudget150(performance.now());const [w,h]=renderSize150(canvas.clientWidth,canvas.clientHeight,devicePixelRatio,state.quality,renderBudget150);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}gl.viewport(0,0,w,h);gl.clearColor(.73,.83,.89,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);const vp=mm(perspective(w/h),lookAt(camera,target)),planes=frustumPlanes(vp);gl.uniformMatrix4fv(uniforms.uVP,false,new Float32Array(vp));gl.uniform3fv(uniforms.uCamera,camera);gl.uniformMatrix4fv(uniforms.uLightVP,false,sunLightVP);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,sunDepth);gl.uniform1i(uniforms.uShadowMap,0);gl.uniform1f(uniforms.uShadowOn,state.sunShadows===false||window.FarmScene63?.active?0:1);bindSunBlend132();Hall32.frame();
+// Color grade (178). "vibrant" (the default) brightens and saturates the
+// whole fair so it reads like the bright character art; "natural" is the
+// original look. Chosen in Settings and remembered on this computer.
+window.Grade178=(()=>{
+ const LOOKS={vibrant:[1.5,1.28,.2,0],natural:[1,1,0,0]};let look='vibrant',live=null;
+ try{const saved=localStorage.getItem('mcqColor178');if(LOOKS[saved])look=saved;}catch(e){}
+ return {values:()=>live||LOOKS[look],get look(){return look;},looks:Object.keys(LOOKS),set(v){if(!LOOKS[v])return;look=v;try{localStorage.setItem('mcqColor178',v);}catch(e){}},test(v){live=v;}};
+})();
+function render(){if(!state.ready||!gl||gl.isContextLost())return;if(window.CharacterInspector?.active){CharacterInspector.draw();return;}window.CityLife111?.present();CityLighting131.frame();StreetProps128.frame();Hospitality140.frame();if(!window.FarmScene63?.active)updateSunShadows();updateRenderBudget150(performance.now());const [w,h]=renderSize150(canvas.clientWidth,canvas.clientHeight,devicePixelRatio,state.quality,renderBudget150);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}gl.viewport(0,0,w,h);gl.clearColor(.73,.83,.89,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);const vp=mm(perspective(w/h),lookAt(camera,target)),planes=frustumPlanes(vp);gl.uniformMatrix4fv(uniforms.uVP,false,new Float32Array(vp));gl.uniform3fv(uniforms.uCamera,camera);gl.uniform4fv(uniforms.uGrade178??=gl.getUniformLocation(program,'uGrade178'),Grade178.values());gl.uniformMatrix4fv(uniforms.uLightVP,false,sunLightVP);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,sunDepth);gl.uniform1i(uniforms.uShadowMap,0);gl.uniform1f(uniforms.uShadowOn,state.sunShadows===false||window.FarmScene63?.active?0:1);bindSunBlend132();Hall32.frame();
  const light=window.FarmScene63?.active?null:state.modelStats.interiorLighting;
  if(light){
   gl.uniform3fv(uniforms['uRoomMin[0]'],light.rooms.flatMap(r=>r.minWorld));
@@ -2068,8 +2081,12 @@ const isNewStudent=id=>NEW_STUDENT_FILES.includes(id);
 // The player character (players177): a supplied Mixamo-rigged boy with his own
 // idle, walk, backward walk, run and sit clips. Brad stays for the crowd and is
 // the player only if this file cannot load.
-const PLAYER_MODEL177='player_boy',isPlayerModel177=id=>id===PLAYER_MODEL177;
+const PLAYER_MODEL177='player_boy',isPlayerModel177=id=>id===PLAYER_MODEL177||/^kid0[1-8]$/.test(id);
 const CHARACTER_HEIGHT=.72;
+// The student characters are kids: about 78% of the adults' height. The
+// collision body stays the same size; the camera aims at the kid's head.
+const KID_RATIO178=.78,KID_HEIGHT178=CHARACTER_HEIGHT*KID_RATIO178;
+function playerHeadLift178(){const k=characterState.player&&isPlayerModel177(characterState.player.model.id)?KID_RATIO178:1;return (1.42*k-.9)*PLAYER_SCALE;}
 // Ambient crowd, staff and the player all shrink together via
 // sectorScaleAt(x,z) (defined near DISCOVERY_LAYOUT) -- rendering size
 // only, never PLAYER_SCALE, PHYSICS, or where agents actually walk (their
@@ -2097,7 +2114,7 @@ function decodeCharacterPrimitive(j,bin,pr,D){
 function characterClip(j,bin,a){const samp=a.samplers.map(s=>({times:accessor(j,bin,s.input),values:accessor(j,bin,s.output),interpolation:s.interpolation||'LINEAR'}));return{name:a.name,duration:Math.max(...samp.map(s=>s.times[s.times.length-1])),channels:a.channels.map(c=>({node:c.target.node,path:c.target.path,...samp[c.sampler]}))};}
 async function loadCharacterModelRaw18(id,D){
  if(gl.isContextLost())throw Error("The graphics context has reset. Restart the empty venue.");MCQDiagnostics18.stage="loading model "+id;
- let ab;if(isPlayerModel177(id)){const response=await fetch('./players177/'+id+'.glb?v=178');if(!response.ok)throw Error('Missing players177/'+id+'.glb');ab=await response.arrayBuffer();}else if(isNewStudent(id)){const response=await fetch('./students17/'+id+'.glb?motion=19',{cache:'no-cache'});if(!response.ok)throw Error('Missing students17/'+id+'.glb. Copy the students17 folder beside index.html.');ab=await response.arrayBuffer();}else{const data=$('character-'+id).textContent.trim(),gz=decodeBase64Bytes(data);ab=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}const{json:j,bin}=parseGLB(ab);if(isNewStudent(id)&&!j.extras?.motionRevision19)throw Error('Old animation file for '+id+'. Replace the students17 folder with the DEV19 models and refresh.');
+ let ab;if(isPlayerModel177(id)){const response=await fetch('./players177/'+id+'.glb?v=179');if(!response.ok)throw Error('Missing players177/'+id+'.glb');ab=await response.arrayBuffer();}else if(isNewStudent(id)){const response=await fetch('./students17/'+id+'.glb?motion=19',{cache:'no-cache'});if(!response.ok)throw Error('Missing students17/'+id+'.glb. Copy the students17 folder beside index.html.');ab=await response.arrayBuffer();}else{const data=$('character-'+id).textContent.trim(),gz=decodeBase64Bytes(data);ab=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}const{json:j,bin}=parseGLB(ab);if(isNewStudent(id)&&!j.extras?.motionRevision19)throw Error('Old animation file for '+id+'. Replace the students17 folder with the DEV19 models and refresh.');
  const parents=new Map(),order=[];j.nodes.forEach((n,i)=>(n.children||[]).forEach(k=>parents.set(k,i)));function visit(i){order.push(i);for(const c of j.nodes[i].children||[])visit(c);}for(const r of j.scenes[j.scene||0].nodes)visit(r);
  const clips=(j.animations||[]).map(a=>characterClip(j,bin,a));const pick=word=>clips.find(c=>new RegExp(word,'i').test(c.name));
  const model={id,j,order,parents,clips,idle:pick('idle'),walk:pick('walk'),back:pick('backward'),wave:pick('wave'),run:isPlayerModel177(id)?pick('run'):null,parts:[],lo:[Infinity,Infinity,Infinity],hi:[-Infinity,-Infinity,-Infinity],skins:j.skins.map(s=>({...s,ibm:accessor(j,bin,s.inverseBindMatrices)}))};
@@ -2111,7 +2128,7 @@ async function loadCharacterModelRaw18(id,D){
    originals.push({name:node.name,skin:node.skin,node:ni,materialIndex:pr.material,source:{positions:p,normals:n,uv,indices,joints,weights}});
   }
  }
- const authored=j.extras?.crowdAppearanceV11?.bodyBounds;if(authored){model.lo=authored.min.slice();model.hi=authored.max.slice();}model.scale=CHARACTER_HEIGHT/(model.hi[1]-model.lo[1]);model.offset=[-(model.lo[0]+model.hi[0])/2,-model.lo[1],-(model.lo[2]+model.hi[2])/2];
+ const authored=j.extras?.crowdAppearanceV11?.bodyBounds;if(authored){model.lo=authored.min.slice();model.hi=authored.max.slice();}model.scale=(isPlayerModel177(id)?KID_HEIGHT178:CHARACTER_HEIGHT)/(model.hi[1]-model.lo[1]);model.offset=[-(model.lo[0]+model.hi[0])/2,-model.lo[1],-(model.lo[2]+model.hi[2])/2];
  let fitted;if(isNewStudent(id)||isPlayerModel177(id)){model.exportBin=bin;model.logoInkMaps=new Map();model.fitReport={model:id,originalColors:true,backpack:{disabled:true},hat:{disabled:true,headSamples:0},logo:{rectangle:[0,0,0,0],frontGateZ:0,triangles:0,inkPixels:0},source:'Original student rig; supplied Standard Walk.fbx and Idle.fbx retargeted'};fitted=originals;}else fitted=await CharacterFitting.fit(model,bin,originals);
  await loadRetainedCharacterTextures18(model,bin,fitted,maps);if(isNewStudent(id))await StudentLooks32.prepare(model,bin,maps,fitted);
  for(const part of fitted){if(gl.isContextLost())throw Error("Graphics reset while preparing "+id);const {positions:p,normals:n,uv,indices,weights,joints}=part.source;const data=new Float32Array(p.length*2);for(let i=0;i<p.length;i+=3)data.set([p[i],p[i+1],p[i+2],n[i],n[i+1],n[i+2]],i*2);
@@ -2178,11 +2195,21 @@ function charactersUI(){if($('characterPanel'))return;if(state.animatePeople===u
 }
 function nearestStaff(){let best=null,d=1.4;for(const a of [...characterState.actors,...(window.Crowd?.representatives()||[]),...(window.Crowd?.volunteers()||[]),...EventFlow22.forInteraction()]){if(a.player||!a.position||Math.abs(player.position[1]-PHYSICS.radii[1]-a.position[1])>.65)continue;const dd=Math.hypot(player.position[0]-a.position[0],player.position[2]-a.position[2]);if(dd<d){best=a;d=dd;}}return best;}
 function askNearestStaff(){const a=nearestStaff();if(!a)return;if(a.boothId&&window.MissionUI99?.openBooth(a.boothId))return;HubGuide.open();HubGuide.ask(a.boothId?shippedBooths.get(a.boothId)?.name:(a.industry||'Where is Information?'));$('hubTitle').textContent=a.name+' - '+a.role;}
+// The player is the kid the student chose on the home page (home179), made once
+// they have chosen, while the rest of the fair keeps loading. The denim boy,
+// then Brad, stand in if that character can't load.
+async function loadPlayer179(D){
+ const id=window.Home179?await Home179.character():PLAYER_MODEL177;let model=null;
+ for(const candidate of [...new Set([id,PLAYER_MODEL177])]){try{model=await loadCharacterModel(candidate,D);break;}catch(e){console.warn('Player character '+candidate+' unavailable:',e.message);}}
+ if(model){characterState.playerModel177=model;characterState.player=createActor(model,{player:true,name:'Player'});}
+ else{const brad=characterState.models.get('brad_character');if(brad)characterState.player=createActor(brad,{player:true,name:'Brad'});}
+ if(characterState.player)characterState.actors.push(characterState.player);
+ characterState.playerReady=true;
+}
 async function initCharacters(){charactersUI();if(characterState.status==='loading'||characterState.status==='ready')return;characterState.status='loading';characterMessage('Loading your animated characters... Internet is used only for the Draco decoder.');try{const D=await loadCharacterDecoder();
- try{const model=await loadCharacterModel(PLAYER_MODEL177,D);characterState.playerModel177=model;if(!characterState.player){characterState.player=createActor(model,{player:true,name:'Player'});characterState.actors.push(characterState.player);}}catch(e){console.warn('Player character unavailable; Brad plays instead:',e.message);}
- for(const id of CHARACTER_FILES){if(characterState.models.has(id))continue;characterMessage('Preparing '+id.replace('_character','')+' ('+(characterState.models.size+1)+'/20)...');const model=await loadCharacterModel(id,D);characterState.models.set(id,model);characterState.loaded=characterState.models.size;if(id==='brad_character'&&!characterState.player){characterState.player=createActor(model,{player:true,name:'Brad'});characterState.actors.push(characterState.player);}await new Promise(r=>setTimeout(r,0));}
+ for(const id of CHARACTER_FILES){if(characterState.models.has(id))continue;characterMessage('Preparing '+id.replace('_character','')+' ('+(characterState.models.size+1)+'/20)...');const model=await loadCharacterModel(id,D);characterState.models.set(id,model);characterState.loaded=characterState.models.size;await new Promise(r=>setTimeout(r,0));}
  // Volunteers now belong to the counted crowd: no extra duplicate helper actors.
- characterState.status='ready';characterState.error=null;characterMessage('20 models ready: 13 originals plus 7 new students. Brad and the 50 purple-shirt helpers are unchanged.');if(window.Crowd&&crowdState.targetCount>0)Crowd.start();}catch(e){characterState.status='error';characterState.error=e.message;characterMessage(e.message,true);console.warn('Character loading:',e.message);}}
+ characterState.status='ready';characterState.error=null;characterMessage('20 models ready: 13 originals plus 7 new students. Brad and the 50 purple-shirt helpers are unchanged.');if(window.Crowd&&crowdState.targetCount>0)Crowd.start();loadPlayer179(D);}catch(e){characterState.status='error';characterState.error=e.message;characterMessage(e.message,true);console.warn('Character loading:',e.message);}}
 window.AnimatedCharacters={init:initCharacters,reposition:repositionStaff,update(dt){characterState.time+=Math.max(0,Math.min(dt,.10));for(const a of characterState.actors)if(!window.FarmScene63?.active||a.player)poseActor(a,dt);if($('staffPrompt')){const a=nearestStaff();$('staffPrompt').hidden=!a||state.showStaff===false||state.overview||HubGuide.snapshot().near||HubGuide.snapshot().dialogOpen||!!window.BoothMedia162?.claimsE();if(a)$('staffPrompt').textContent='E - Ask '+a.name+' ('+a.role+')';}},draw(planes){for(const a of characterState.actors)if(a.player||!window.FarmScene63?.active&&state.showStaff!==false)drawActor(a,planes);},hasPlayer(){return !!characterState.player;},snapshot(){return{status:characterState.status,message:characterState.message,loaded:characterState.loaded,error:characterState.error,player:characterState.player?.model.id,actors:characterState.actors.map(a=>({name:a.name,industry:a.industry,position:a.position,clip:a.mode,model:a.model.id,height:CHARACTER_HEIGHT,clips:a.model.clips.map(c=>c.name)}))};},testPose:poseActor,testCreate:createActor,testDecode:decodeCharacterPrimitive,testModel:loadCharacterModel};
 
 /* Inspect the actual decoded models, at full mesh detail, outside the busy crowd.
@@ -2201,7 +2228,7 @@ const CharacterInspector=(()=>{
  function open(id='brad_character'){if(!characterState.models.size){toast('Wait for the original character meshes to load, then open the close-up.');return false;}ensureUI();if(!active){saved={overview:state.overview,paused:state.paused};active=true;state.paused=false;keys.clear();document.body.classList.add('fitting');}const selectEl=$i('fitModel');selectEl.replaceChildren();for(const m of characterState.models.values()){const opt=document.createElement('option');opt.value=m.id;opt.textContent=m.id.replace(/_/g,' ');selectEl.append(opt);}selectEl.value=characterState.models.has(id)?id:characterState.models.keys().next().value;$i('characterFitPanel').hidden=false;$i('fitModelName').hidden=false;select(selectEl.value);return true;}
  function close(){if(!active)return;active=false;disposeActor();document.body.classList.remove('fitting');$i('characterFitPanel').hidden=$i('fitModelName').hidden=true;state.overview=saved.overview;state.paused=saved.paused;keys.clear();lastTime=performance.now();updateCamera(0,true);render();canvas.focus();}
  function update(dt){if(actor)poseActor(actor,dt,true);updateCamera(0,true);}
- function draw(){const ratio=Math.min(devicePixelRatio||1,state.quality),w=Math.max(1,Math.floor(canvas.clientWidth*ratio)),h=Math.max(1,Math.floor(canvas.clientHeight*ratio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}gl.viewport(0,0,w,h);gl.clearColor(.72,.77,.80,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);const vp=mm(perspective(w/h),lookAt(camera,target)),planes=frustumPlanes(vp);gl.uniformMatrix4fv(uniforms.uVP,false,new Float32Array(vp));gl.uniform3fv(uniforms.uCamera,camera);gl.uniformMatrix4fv(uniforms.uLightVP,false,IDENTITY);gl.uniform1f(uniforms.uShadowOn,0);gl.uniform1f(uniforms.uIndoorGain,0);if(uniforms.uHall)gl.uniform1f(uniforms.uHall,0);gl.uniform3f(uniforms.uRoomStrength,0,0,0);gl.disable(gl.BLEND);gl.depthMask(true);drawBatch(avatarCube,transform([0,-.025,0],[3,.04,3]),false,[.53,.56,.58,1]);if(actor)drawActor(actor,planes);gl.bindVertexArray(null);}
+ function draw(){const ratio=Math.min(devicePixelRatio||1,state.quality),w=Math.max(1,Math.floor(canvas.clientWidth*ratio)),h=Math.max(1,Math.floor(canvas.clientHeight*ratio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}gl.viewport(0,0,w,h);gl.clearColor(.72,.77,.80,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);const vp=mm(perspective(w/h),lookAt(camera,target)),planes=frustumPlanes(vp);gl.uniformMatrix4fv(uniforms.uVP,false,new Float32Array(vp));gl.uniform3fv(uniforms.uCamera,camera);gl.uniform4fv(uniforms.uGrade178??=gl.getUniformLocation(program,'uGrade178'),Grade178.values());gl.uniformMatrix4fv(uniforms.uLightVP,false,IDENTITY);gl.uniform1f(uniforms.uShadowOn,0);gl.uniform1f(uniforms.uIndoorGain,0);if(uniforms.uHall)gl.uniform1f(uniforms.uHall,0);gl.uniform3f(uniforms.uRoomStrength,0,0,0);gl.disable(gl.BLEND);gl.depthMask(true);drawBatch(avatarCube,transform([0,-.025,0],[3,.04,3]),false,[.53,.56,.58,1]);if(actor)drawActor(actor,planes);gl.bindVertexArray(null);}
  function download(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);}
  async function saveModel(){if(!actor||pending)return;pending=true;$i('fitExport').disabled=true;const m=actor.model,o=actor.outfit;try{const blob=await exportModel(m,o);download(blob,m.id+(o.volunteer?'-volunteer':'-attendee')+'-fitted-v12.glb');}catch(e){toast('Could not export fitted character: '+e.message);console.error(e);}finally{pending=false;$i('fitExport').disabled=false;}}
  async function exportModel(m,o){const j=structuredClone(m.j),chunks=[m.exportBin],images=m.logoInkMaps;let total=m.exportBin.byteLength;const align=()=>{if(total%4){const pad=new Uint8Array(4-total%4);chunks.push(pad);total+=pad.length;}};
@@ -4542,16 +4569,16 @@ function revealStudentGamification(){
 <script src="./rivian147/runtime.js?v=20261022-gems164"></script>
 <script src="./ambulance35/indoor-performance154.js?v=20261020-driving154"></script>
 <script src="./missions99/ui.js?v=20261023-journey166"></script>
-<script src="./journey166/journey.js?v=20261023-exit170"></script>
+<script src="./journey166/journey.js?v=20261027-home179"></script>
 <script src="./visitors100/rides103-data.js?v=20261012-rides104"></script>
 <script src="./city106/street128/bike-data.js?v=20261016-street128"></script>
 <script src="./city106/street128/docks.js?v=20261016-materials129"></script>
-<script src="./visitors100/scooter.js?v=20261026-boy177"></script>
-<script src="./fall173/fall.js?v=20261027-ground178"></script>
+<script src="./visitors100/scooter.js?v=20261027-kid178"></script>
+<script src="./fall173/fall.js?v=20261027-home179"></script>
 <link rel="stylesheet" href="./boothmedia162/media.css?v=20261022-media162">
 <script src="./boothmedia162/media.js?v=20261022-media162"></script>
 <script src="./visitors100/wayfinder103.js?v=20261022-pacing164"></script>
 <link rel="stylesheet" href="./visitors100/rewards.css?v=20261023-segways168">
-<script src="./loading155/world.js?v=20261021-crash162"></script>
+<script src="./loading155/world.js?v=20261027-home179"></script>
 <script>/* Self-running speed test, only for links with ?diagnose=<id>. */if(/[?&]diagnose=/.test(location.search)){const s=document.createElement('script');s.src='./diagnose165/diagnose.js?v=166';document.body.append(s);}</script>
 </body></html>
