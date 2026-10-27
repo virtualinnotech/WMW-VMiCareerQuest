@@ -2,8 +2,8 @@
 # bytes, top row first, gzip), so every kid in the
 # venue crowd can wear their own colours (StudentLooks32 in venue-frame.html).
 # For every texel of a kid's texture the map says what it is:
-#   1 top/jacket, 2 pants, 3 shoes, 7 hair, 9 skin, 0 left as painted (faces,
-#   eyes, lips, inner shirts, caps, laces, soles, badges); +128 = UV gutter.
+#   1 top/jacket, 2 pants, 3 shoes, 0 left as painted (skin, hair, faces,
+#   inner shirts, caps, laces, soles, badges); +128 = UV gutter.
 # The body part comes from the mesh's bone weights (head, arms and torso, legs,
 # feet, hands); within each part, skin is found by colour (matched to the
 # hands), and the largest remaining colour group is the garment (matched by
@@ -51,7 +51,6 @@ for kid in sorted(f[:5] for f in os.listdir(folder) if f.startswith('kid0') and 
     # Region per vertex: the bone group with the most weight; hips split at the hip joint.
     groups = {g.index: region_of(g.name) for g in mesh.vertex_groups}
     hip_z = (arm.matrix_world @ arm.data.bones['mixamorig:Hips'].head_local).z
-    neck_z = (arm.matrix_world @ arm.data.bones['mixamorig:Neck'].head_local).z
     co = np.array([(mesh.matrix_world @ v.co).z for v in me.vertices])
     vreg = np.zeros(len(me.vertices), int)
     for v in me.vertices:
@@ -63,9 +62,7 @@ for kid in sorted(f[:5] for f in os.listdir(folder) if f.startswith('kid0') and 
         vreg[v.index] = REGION[r]
     # Rasterize every triangle's UVs with its region (Blender pixel rows run bottom-up, like the image).
     uv = np.array([d.uv[:] for d in me.uv_layers.active.data], np.float32)
-    region = np.full((SIZE, SIZE), 255, np.uint8); tri = np.full((SIZE, SIZE), -1, np.int32)
-    vz = np.array([(mesh.matrix_world @ v.co).z for v in me.vertices]); nrm = mesh.matrix_world.to_3x3()
-    tz = np.array([vz[list(t.vertices)].mean() for t in me.loop_triangles]); front = np.array([-(nrm @ t.normal).normalized().y for t in me.loop_triangles])
+    region = np.full((SIZE, SIZE), 255, np.uint8)
     for t in me.loop_triangles:
         p = uv[list(t.loops)] * SIZE; r = np.bincount(vreg[list(t.vertices)], minlength=5).argmax()
         x0, y0 = np.floor(p.min(0)).astype(int); x1, y1 = np.ceil(p.max(0)).astype(int)
@@ -76,43 +73,41 @@ for kid in sorted(f[:5] for f in os.listdir(folder) if f.startswith('kid0') and 
         if abs(d) < 1e-9: continue
         l1 = ((by - cy) * (gx - cx) + (cx - bx) * (gy - cy)) / d; l2 = ((cy - ay) * (gx - cx) + (ax - cx) * (gy - cy)) / d; l3 = 1 - l1 - l2
         inside = (l1 >= -.02) & (l2 >= -.02) & (l3 >= -.02)
-        region[y0:y1 + 1, x0:x1 + 1][inside] = r; tri[y0:y1 + 1, x0:x1 + 1][inside] = t.index
+        region[y0:y1 + 1, x0:x1 + 1][inside] = r
     # Skin colour: the hands (bare on every kid), in chromaticity and brightness.
     rgb = tex.reshape(-1, 3); s = rgb.sum(1) + 1e-5; chroma = rgb[:, :2] / s[:, None]; light = s / 3
     flat = region.reshape(-1); hand = (flat == REGION['hand']) & (light > .15) & (light < .95)
     ref_c, ref_l = np.median(chroma[hand], 0), np.median(light[hand])
     skin = (np.hypot(*(chroma - ref_c).T) < .028) & (light > ref_l * .5) & (light < ref_l * 1.45)
-    mx, mn = rgb.max(1), rgb.min(1); sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-5), 0)
-    hue = np.zeros(len(rgb)); d = np.maximum(mx - mn, 1e-5); r_, g_, b_ = rgb.T
-    hue = np.where(mx == r_, ((g_ - b_) / d) % 6, np.where(mx == g_, (b_ - r_) / d + 2, (r_ - g_) / d + 4)) * 60
-    roles = np.zeros(len(rgb), np.uint8); tflat = tri.reshape(-1)
-    def dominant(idx, darkest=.3):   # the largest colour group, then every texel of its colour (any shade)
-        lab = kmeans(np.c_[chroma[idx] * 3, light[idx] * .6], 3); big = idx[lab == np.bincount(lab).argmax()]
+    # Clothes only: in each body part (torso and arms, legs, feet) the largest
+    # colour group, matched by colour with shading allowed (chroma counts less in
+    # dark folds), then cleaned up so it is solid: small gaps and seams filled,
+    # lone specks dropped. Skin, hair and faces are never touched.
+    roles = np.zeros((SIZE, SIZE), np.uint8)
+    def grow(m, r):
+        out = m.copy()
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                out |= np.roll(np.roll(m, dy, 0), dx, 1)
+        return out
+    shrink = lambda m, r: ~grow(~m, r)
+    skin2 = skin.reshape(SIZE, SIZE)
+    for name, rid in (('upper', 1), ('leg', 2), ('foot', 3)):
+        allowed = (region == REGION[name]) & ~skin2
+        idx = np.where(allowed.reshape(-1))[0]
+        if len(idx) < 50: continue
+        lab = kmeans(np.c_[chroma[idx] * 3, light[idx] * .6], 4); big = idx[lab == np.bincount(lab).argmax()]
         c0, l0 = np.median(chroma[big], 0), np.median(light[big])
-        return idx[(np.hypot(*(chroma[idx] - c0).T) < .03) & (light[idx] > l0 * darkest) & (light[idx] < l0 * 1.7)]
-    for name, rid in REGION.items():
-        m = flat == rid
-        if not m.any(): continue
-        roles[m & skin] = 9
-        if name == 'hand': continue
-        rest = np.where(m & ~skin)[0]
-        if name == 'head':
-            # The face: front-facing head texels from the chin to just above the brows.
-            fz = tz[tflat[np.where(m & skin & (front[np.maximum(tflat, 0)] > .3))[0]]]
-            if len(fz) > 50:
-                z0, z1 = np.percentile(fz, 5), np.percentile(fz, 95); t_ = tflat[rest]
-                face = (front[t_] > .2) & (tz[t_] > z0) & (tz[t_] < z0 + .72 * (z1 - z0))
-                rest = rest[~face]
-        if len(rest) < 50: continue
-        got = dominant(rest, .1 if name == 'head' else .3)   # hair strands run very dark
-        roles[got] = {'head': 7, 'upper': 1, 'leg': 2, 'foot': 3}[name]
-        if name == 'head': hair_c, hair_l = np.median(chroma[got], 0), np.median(light[got])
-    # A ponytail or long hair hanging on the back is weighted to the neck and spine.
-    if 'hair_c' in dir():
-        back = np.where((flat == REGION['upper']) & (roles != 9) & (tz[np.maximum(tflat, 0)] > neck_z - .12) & (tflat >= 0))[0]
-        roles[back[(np.hypot(*(chroma[back] - hair_c).T) < .025) & (light[back] > hair_l * .1) & (light[back] < hair_l * 1.6)]] = 7
-        del hair_c
-    roles = roles.reshape(SIZE, SIZE); covered = region != 255
+        shade = np.clip(light[idx] / l0, .25, 1)
+        # Shine on dark cloth is bright but colourless: let it in too.
+        near = (np.hypot(*(chroma[idx] - c0).T) * shade < .035) & (light[idx] > l0 * .15) & (light[idx] < max(l0 * 1.8, l0 + .3))
+        m = np.zeros(SIZE * SIZE, bool); m[idx[near]] = True; m = m.reshape(SIZE, SIZE)
+        m = shrink(grow(m, 4), 4) & allowed          # fill gaps, seams and stitching
+        # Texels off the mesh (texture seams) count as cloth when dropping lone
+        # specks, so the thin edges of a piece of the texture are kept.
+        m = grow(shrink(m | (region == 255), 1), 1) & allowed
+        roles[m] = rid
+    covered = region != 255
     # Gutter texels take a neighbour's role (+128) so filtering never pulls in a wrong colour.
     out = np.where(covered, roles, 0).astype(np.uint8); have = covered.copy()
     for _ in range(6):
@@ -124,9 +119,9 @@ for kid in sorted(f[:5] for f in os.listdir(folder) if f.startswith('kid0') and 
         f.write(np.ascontiguousarray(out[::-1]).tobytes())
     debug = os.environ.get('ROLES_DEBUG')
     if debug:   # the texture with each role tinted, for checking by eye
-        tint = {1: (1, .2, .2), 2: (.2, .4, 1), 3: (1, .8, 0), 7: (.6, .2, .9), 9: (.2, .9, .3)}
+        tint = {1: (1, .2, .2), 2: (.2, .4, 1), 3: (1, .8, 0)}
         dbg = tex.copy() * .35
         for k, c in tint.items(): dbg[(out & 127) == k] = dbg[(out & 127) == k] + np.array(c) * .65
         di = bpy.data.images.new(kid + '-dbg', SIZE, SIZE); di.pixels = np.dstack([np.clip(dbg, 0, 1), np.ones((SIZE, SIZE))]).ravel(); di.filepath_raw = os.path.join(debug, kid + '-roles-debug.png'); di.file_format = 'PNG'; di.save()
-    counts = {k: int(((out & 127) == v).sum()) for k, v in {'top': 1, 'pants': 2, 'shoes': 3, 'hair': 7, 'skin': 9, 'kept': 0}.items()}
+    counts = {k: int(((out & 127) == v).sum()) for k, v in {'top': 1, 'pants': 2, 'shoes': 3, 'kept': 0}.items()}
     print('ROLES', kid, counts, 'skin ref', [round(float(c), 3) for c in ref_c], round(float(ref_l), 3))

@@ -89,7 +89,8 @@ window.Scooter100=(()=>{
   const drag=StreetProps128.strike({id:'Ride128 '+activeId,from:[player.position[0],player.position[2]],x:player.position[0]+vx*dt,z:player.position[2]+vz*dt,y:player.position[1]-PHYSICS.radii[1],yaw:player.yaw,width:.27,length:ride().kind==='bike'?.78:.48,height:.6,vx,vz,mass:95});speed*=1-drag;
   const oldSpeed=state.speed,before=[...player.position];state.speed=Math.abs(speed)/(1.5*PLAYER_SCALE);
   const radii=PHYSICS.radii;PHYSICS.radii=[Math.max(radii[0],.25),radii[1],Math.max(radii[2],.25)];
-  try{walk(dt,{forward:speed>.001,backward:speed<-.001,fast:false});}finally{state.speed=oldSpeed;PHYSICS.radii=radii;}
+  // ride: move at the speed above, not at the rider's walking pace.
+  try{walk(dt,{forward:speed>.001,backward:speed<-.001,fast:false,ride:true});}finally{state.speed=oldSpeed;PHYSICS.radii=radii;}
   if(Math.abs(speed)>.1&&Math.hypot(player.position[0]-before[0],player.position[2]-before[2])<Math.abs(speed)*dt*.15){if(Math.abs(speed)>=CRASH_SPEED&&window.Fall173?.ready())crashing=true;speed=0;}
   const travelled=Math.hypot(player.position[0]-before[0],player.position[2]-before[2])*Math.sign(speed)/scale();
   for(const w of dataFor(activeId).wheels){const differential=isSegway(activeId)?yawDelta*w.pivot[0]:0;ride().angles[w.name]+=(travelled-differential)/w.radius;}

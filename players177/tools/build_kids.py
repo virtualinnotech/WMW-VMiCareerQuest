@@ -4,23 +4,28 @@
 # pack's GLB, and its own Mixamo clips. Every file comes in through the same
 # FBX importer, so the clips match the skeleton's rest pose. Clip names are
 # what the game picks: idle, walk, walk_backward (Walking played in reverse),
-# run (Slow Run, when the character has one) and cheer (a wave or a jump, for
-# the character select carousel). Scale keys and every translation key but
+# run (Slow Run; kids 03, 05 and 08 have none in the pack, so they borrow
+# kid04's or kid01's, retargeted bone by bone) and cheer (a wave or a jump,
+# for the character select carousel). Scale keys and every translation key but
 # the hips are dropped, and the mesh is Draco-compressed (the game already
 # decodes Draco for its other characters). The game stands the T-pose soles
 # on the floor; where a character's clips tilt the feet below that (shoe
 # edges in a relaxed idle), the whole rig is raised so the lowest point of
 # idle, walk and run averages out on the floor.
 # Every kid is reshaped to kid04's proportions (the user's pick): head and
-# hands scaled about their joints, torso, arms and legs stretched or
+# hands scaled about their joints (hands only part of the way, measured from
+# the mesh: matched fully they looked too small in puffy sleeves), torso, arms and legs stretched or
 # shortened along their bones, torso and limbs slimmed or filled out; the mesh is
 # baked into that shape and it becomes the new rest pose, so the clips (which
 # are rotations) fit it unchanged. Hips motion in the clips scales with the
 # new hip height.
-# Each kid also gets a lighter copy for the venue crowd (kidNN-crowd.glb):
-# about 9,000 triangles, a 1024 texture, the same skeleton, idle and walk.
+# Each kid also gets a lighter copy for the venue crowd (kidNN-crowd.glb): a
+# 1024 texture, the same skeleton, idle and walk, and three meshes: 13,000
+# triangles with the face kept detailed (close), and 6,000 and 2,600 for the
+# game's middle and far distances (mesh names end @lod1 and @lod2).
 # Usage: blender -b --factory-startup --python build_kids.py -- <pack folder with GLB/ and ANIMATIONS/> <out folder> [kid01 ...]
 import bpy, sys, os, json, struct
+from mathutils import Matrix, Quaternion
 import numpy as np
 
 args = sys.argv[sys.argv.index('--') + 1:]
@@ -35,6 +40,8 @@ ROSTER = [  # id, pack GLB (texture), animation folder, clips
     ('kid07', 'boy 4.glb', 'boy 4', {'idle': 'Idle', 'walk': 'Walking', 'run': 'Slow Run', 'cheer': 'Jumping Up'}),
     ('kid08', 'GLB GIRL CHARACETR 4.glb', 'ANIAMTIONS GIRL 4', {'idle': 'Idle', 'walk': 'Walking', 'cheer': 'Waving'}),
 ]
+# A run borrowed from a kid of similar build, for those without one.
+BORROW_RUN = {'kid03': ('boy 2', 'Slow Run'), 'kid05': ('animations GIRL 1', 'Slow Run'), 'kid08': ('animations GIRL 1', 'Slow Run')}
 
 def glb_basecolor(path, folder):
     raw = open(path, 'rb').read(); l = struct.unpack('<I', raw[12:16])[0]; j = json.loads(raw[20:20 + l]); o = 20 + l
@@ -91,26 +98,37 @@ def lowest_at(arm, meshes, frame):
 # arm is shoulder joint to wrist, leg is hip joint to ankle, head is the head
 # joint to the top of the hair, hand is wrist to index knuckle, foot is the
 # ankle's height, width is shoulder joint to shoulder joint.
-KID04 = {'torso': .2758, 'arm': .2286, 'leg': .3974, 'head': .1789, 'hand': .0454, 'foot': .0748, 'width': .2003}
-# kid02's rig has no finger bones past the index knuckle, so its hand measures
-# short; these are set by eye to match the others.
-OVERRIDES = {'kid02': {'hand': .62, 'arm': .80}}
-CROWD_TRIANGLES = 9000
-LIMITS = {'torso': (.85, 1.25), 'arm': (.75, 1.15), 'leg': (.85, 1.2), 'head': (.45, 1.1), 'hand': (.5, 1.1), 'foot': (.6, 1.1), 'width': (.72, 1.1)}
+# Hand is measured on the mesh: wrist to fingertip along the forearm.
+KID04 = {'torso': .2758, 'arm': .2286, 'leg': .3974, 'head': .1789, 'hand': .0898, 'foot': .0748, 'width': .2003}
+HAND_SHARE = .6   # how far toward kid04's hand size (1 = all the way)
+OVERRIDES = {'kid02': {'arm': .80}}   # set by eye
+CROWD_LODS = [(13000, 1.0), (6000, 0), (2600, 0)]   # triangles, face protection
+LIMITS = {'torso': (.85, 1.25), 'arm': (.75, 1.15), 'leg': (.85, 1.2), 'head': (.45, 1.1), 'hand': (.6, 1.1), 'foot': (.6, 1.1), 'width': (.72, 1.1)}
+
+def hand_length(arm, meshes):
+    mw = arm.matrix_world; wrist = mw @ arm.data.bones['mixamorig:LeftHand'].head_local
+    axis = (wrist - mw @ arm.data.bones['mixamorig:LeftForeArm'].head_local).normalized(); best = 0
+    for o in meshes:
+        names = {g.index: g.name for g in o.vertex_groups}
+        for v in o.data.vertices:
+            g = max(v.groups, key=lambda g: g.weight, default=None)
+            if g and names.get(g.group, '').startswith('mixamorig:LeftHand'):
+                best = max(best, (o.matrix_world @ v.co - wrist).dot(axis))
+    return best
 
 def measure(arm, meshes):
     mw = arm.matrix_world; P = lambda n: mw @ arm.data.bones['mixamorig:' + n].head_local; d = lambda a, b: (a - b).length
     zs = [(o.matrix_world @ v.co).z for o in meshes for v in o.data.vertices]; lo, hi = min(zs), max(zs)
     return {'torso': d(P('Neck'), P('Hips')), 'arm': d(P('LeftForeArm'), P('LeftArm')) + d(P('LeftHand'), P('LeftForeArm')),
             'leg': d(P('LeftLeg'), P('LeftUpLeg')) + d(P('LeftFoot'), P('LeftLeg')), 'head': hi - P('Head').z,
-            'hand': d(P('LeftHandIndex1'), P('LeftHand')), 'foot': P('LeftFoot').z - lo, 'width': d(P('LeftArm'), P('RightArm')), 'hips': P('Hips').z - lo}
+            'hand': hand_length(arm, meshes), 'foot': P('LeftFoot').z - lo, 'width': d(P('LeftArm'), P('RightArm')), 'hips': P('Hips').z - lo}
 
 def reshape(arm, meshes, kid):
     m = measure(arm, meshes)
     # Overall size is free (the game sets every kid's height): pick the one
     # that changes torso, arms and legs least, then match kid04 from there.
     size = (m['torso'] / KID04['torso'] * m['arm'] / KID04['arm'] * m['leg'] / KID04['leg']) ** (1 / 3)
-    f = {k: min(max(KID04[k] * size / m[k], LIMITS[k][0]), LIMITS[k][1]) for k in KID04}
+    f = {k: min(max((KID04[k] * size / m[k]) ** (HAND_SHARE if k == 'hand' else 1), LIMITS[k][0]), LIMITS[k][1]) for k in KID04}
     f.update(OVERRIDES.get(kid, {}))
     if all(abs(v - 1) < .01 for v in f.values()):
         return 1.0, f
@@ -143,6 +161,66 @@ def reshape(arm, meshes, kid):
     after = measure(arm, meshes)
     return after['hips'] / m['hips'], f
 
+def chain(arm):   # pose bones, parents first
+    out = []
+    def visit(b):
+        out.append(b); [visit(c) for c in b.children]
+    [visit(b) for b in arm.pose.bones if not b.parent]
+    return out
+
+def borrow_run(arm, path):
+    # Each bone takes the source's world rotation away from its own T-pose;
+    # the hips move like the source's, scaled to this kid's hip height.
+    src, junk = import_fbx(path)
+    for o in junk:
+        bpy.data.objects.remove(o, do_unlink=True)
+    sact = src.animation_data.action; lo, hi = map(int, sact.frame_range)
+    mwS, mwT = src.matrix_world, arm.matrix_world
+    floor = lambda a, mw: (mw @ a.data.bones['mixamorig:LeftToeBase'].head_local).z
+    hipz = lambda a, mw: (mw @ a.data.bones['mixamorig:Hips'].head_local).z
+    ratio = (hipz(arm, mwT) - floor(arm, mwT)) / (hipz(src, mwS) - floor(src, mwS))
+    act = bpy.data.actions.new('run'); act.use_fake_user = True; arm.animation_data.action = act
+    bones, prev = chain(arm), {}
+    for f in range(lo, hi + 1):
+        bpy.context.scene.frame_set(f); posed = {}
+        for b in bones:
+            rest = b.bone.matrix_local; parent = b.parent
+            base = posed[parent.name] @ (parent.bone.matrix_local.inverted() @ rest) if parent else rest.copy()
+            sb = src.pose.bones.get(b.name); rot = Quaternion(); loc = (0, 0, 0)
+            if sb:
+                delta = (mwS @ sb.matrix).to_quaternion() @ (mwS @ sb.bone.matrix_local).to_quaternion().inverted()
+                want = mwT.to_quaternion().inverted() @ (delta @ (mwT @ rest).to_quaternion())
+                rot = base.to_quaternion().inverted() @ want
+                if b.name in prev and rot.dot(prev[b.name]) < 0:
+                    rot.negate()
+                prev[b.name] = rot.copy()
+                if not parent:
+                    move = ((mwS @ sb.matrix).translation - (mwS @ sb.bone.matrix_local).translation) * ratio
+                    loc = rest.to_3x3().inverted() @ (mwT.to_3x3().inverted() @ move)
+            b.rotation_mode = 'QUATERNION'; b.rotation_quaternion = rot; b.location = loc
+            posed[b.name] = base @ Matrix.Translation(loc) @ rot.to_matrix().to_4x4()
+            b.keyframe_insert('rotation_quaternion', frame=f)
+            if not parent:
+                b.keyframe_insert('location', frame=f)
+    bpy.data.objects.remove(src, do_unlink=True); arm.animation_data.action = None
+    for b in arm.pose.bones:
+        b.location = (0, 0, 0); b.rotation_quaternion = (1, 0, 0, 0)
+    return act
+
+def face_group(o, arm):
+    # The face: head-weighted vertices in front of the head joint, below the brows.
+    hd = arm.matrix_world @ arm.data.bones['mixamorig:Head'].head_local; names = {g.index: g.name for g in o.vertex_groups}
+    ids = [v.index for v in o.data.vertices if (lambda g: g and names.get(g.group, '').endswith(':Head'))(max(v.groups, key=lambda g: g.weight, default=None))
+           and (o.matrix_world @ v.co).y < hd.y + .01 and (o.matrix_world @ v.co).z < hd.z + .16]
+    g = o.vertex_groups.new(name='face179'); g.add(ids, 1.0, 'REPLACE'); return g
+
+def decimate(o, triangles, protect):
+    tris = sum(len(p.vertices) - 2 for p in o.data.polygons)
+    d = o.modifiers.new('Decimate', 'DECIMATE'); d.ratio = min(1.0, triangles / max(1, tris))
+    if protect:
+        d.vertex_group = 'face179'; d.invert_vertex_group = True; d.vertex_group_factor = protect
+    bpy.context.view_layer.objects.active = o; bpy.ops.object.modifier_move_to_index(modifier='Decimate', index=0); bpy.ops.object.modifier_apply(modifier='Decimate')
+
 def trim(action):
     for fc in list(action.fcurves):
         hips = '"mixamorig:Hips"' in fc.data_path
@@ -173,6 +251,9 @@ for kid, glb, folder, clips in ROSTER:
         for o in [a2] + junk:
             bpy.data.objects.remove(o, do_unlink=True)
     arm.animation_data_create(); arm.animation_data.action = None
+    if 'run' not in actions and kid in BORROW_RUN:
+        actions['run'] = borrow_run(arm, os.path.join(pack, 'ANIMATIONS', BORROW_RUN[kid][0], BORROW_RUN[kid][1] + '.fbx')); trim(actions['run'])
+        print('BORROWED run for', kid, 'from', BORROW_RUN[kid][0])
     hip_ratio, factors = reshape(arm, [m for m in meshes if m.type == 'MESH'], kid)
     for act in actions.values():   # hips motion follows the new hip height
         for fc in act.fcurves:
@@ -198,11 +279,16 @@ for kid, glb, folder, clips in ROSTER:
                               export_image_format='JPEG', export_jpeg_quality=88, export_materials='EXPORT', export_yup=True,
                               export_extras=False, export_cameras=False, export_lights=False)
     print('KID', kid, os.path.getsize(dst) // 1024, 'KB', sorted(actions), img.size[:])
-    # The crowd copy: decimate the base mesh (weights carry over), smaller texture.
+    # The crowd copy: three decimated meshes (weights carry over), smaller texture.
     for o in [m for m in meshes if m.type == 'MESH']:
-        tris = sum(len(p.vertices) - 2 for p in o.data.polygons)
-        dec = o.modifiers.new('Decimate', 'DECIMATE'); dec.ratio = min(1.0, CROWD_TRIANGLES / max(1, tris))
-        bpy.context.view_layer.objects.active = o; bpy.ops.object.modifier_move_to_index(modifier='Decimate', index=0); bpy.ops.object.modifier_apply(modifier='Decimate')
+        face_group(o, arm); copies = []
+        for level, (triangles, protect) in enumerate(CROWD_LODS):
+            c = o if level == 0 else o.copy()
+            if level:
+                c.data = o.data.copy(); c.name = o.name + '@lod%d' % level; bpy.context.scene.collection.objects.link(c); copies.append(c)
+        for level, c in enumerate([o] + copies):
+            decimate(c, *CROWD_LODS[level]); c.vertex_groups.remove(c.vertex_groups['face179'])
+        meshes = meshes + copies
     img.scale(1024, 1024)
     for track in list(arm.animation_data.nla_tracks):   # the crowd only idles and walks
         if track.name not in ('idle', 'walk'):
@@ -214,4 +300,4 @@ for kid, glb, folder, clips in ROSTER:
                               export_draco_texcoord_quantization=12, export_draco_generic_quantization=12,
                               export_image_format='JPEG', export_jpeg_quality=85, export_materials='EXPORT', export_yup=True,
                               export_extras=False, export_cameras=False, export_lights=False)
-    print('CROWD', kid, os.path.getsize(crowd) // 1024, 'KB', sum(len(p.vertices) - 2 for m in meshes if m.type == 'MESH' for p in m.data.polygons), 'triangles')
+    print('CROWD', kid, os.path.getsize(crowd) // 1024, 'KB', [(m.name, sum(len(p.vertices) - 2 for p in m.data.polygons)) for m in meshes if m.type == 'MESH'])

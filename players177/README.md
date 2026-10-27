@@ -15,21 +15,31 @@ in the order of the character select art:
 | kid07 | varsity jacket, green hoodie |
 | kid08 | olive jacket, khaki cargo pants |
 
-Every kid is reshaped to kid04's proportions (smaller head and hands,
-arms, legs and torso matched, torso and limbs slimmed); kid04 itself is
+Every kid is reshaped to kid04's proportions (smaller head, arms, legs and
+torso matched, torso and limbs slimmed; hands, measured on the mesh, go only
+part of the way so they don't look tiny in puffy sleeves); kid04 itself is
 unchanged. Kids are drawn at 78% of the adults' height (KID_RATIO178 in
 venue-frame.html); ride poses fit a kid rider (visitors100/scooter.js).
 
 The venue crowd is made of the kids too (with the 50 purple volunteers and
 20 adult chaperones). It uses `kidNN-crowd.glb`, a lighter copy of each kid
-(about 9,000 triangles, a 1024 texture, idle and walk only), and
-`kidNN-roles.bin.gz`, a map of which texels are the top, pants, shoes, hair
-and skin, so every kid in the crowd gets their own colours and skin tone
-(StudentLooks32.kidOutfit in venue-frame.html).
+(a 1024 texture, idle and walk only) with three meshes: 13,000 triangles
+with the face kept detailed for close by, and 6,000 and 2,600 (`@lod1`,
+`@lod2`) for the middle and far distances; the game uses these instead of
+simplifying the mesh itself. `kidNN-roles.bin.gz` maps which texels are the
+top, pants and shoes, so every kid in the crowd wears a different colour
+combination (StudentLooks32.kidOutfit in venue-frame.html); skin, hair and
+faces keep their own painting.
+
+Walking speed comes from the feet: the game measures how fast each kid's
+planted foot moves in walk, run and backward walk (gait179) and moves the
+body at exactly that speed times the clip's playback rate, so feet never
+slide. Crowd kids walk at their own stride with the adults' step pace.
 
 Clips, by the names the game picks: `idle`, `walk` (W), `walk_backward`
-(Walking played in reverse, S), `run` (Slow Run, Shift + W; kids without one
-walk faster) and `cheer` (a wave or a jump, played when picked in the
+(Walking played in reverse, S), `run` (Slow Run, Shift + W; kids 03, 05 and
+08 have none in the pack, so they borrow kid04's or kid01's, retargeted bone
+by bone) and `cheer` (a wave or a jump, played when picked in the
 carousel). Falls use `fall173/kidNN-fall.json`.
 
 To rebuild from the pack (unzip its GLB.zip and ANIMATIONS.zip into one folder):

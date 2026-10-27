@@ -32,7 +32,7 @@ window.Sound179=(()=>{
 })();
 
 window.Home179=(()=>{
- const V='179',KEY='mcqCharacter179',ROSTER=['kid01','kid02','kid03','kid04','kid05','kid06','kid07','kid08'],DEFAULT='kid01';
+ const V='180',KEY='mcqCharacter179',ROSTER=['kid01','kid02','kid03','kid04','kid05','kid06','kid07','kid08'],DEFAULT='kid01';
  const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}}};
  // Same rules as the game's STUDIO_MODE and Journey166, decided before the game's own script has loaded.
  const studio=(()=>{if(window.top===window.self)return false;if(typeof window.SHIP_TOKEN==='string')return true;if(/^\/(student|venue\.html)$/i.test(location.pathname))return false;try{return !!window.parent.document;}catch(e){return false;}})();

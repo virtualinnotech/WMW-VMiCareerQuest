@@ -23,7 +23,7 @@ window.Fall173=(()=>{
    while(!characterState.player?.model)await new Promise(r=>setTimeout(r,500));
    // Each player rig has its own retargeted copy (player_boy-fall.json for the denim boy, kid01-fall.json and on for the kids).
    const model=characterState.player.model,url=model.j.extras?.player177?.falls||(/^kid0[1-8]$/.test(model.id)?'./fall173/'+model.id+'-fall.json':'./fall173/brad-fall.json');
-   const response=await fetch(url+'?v=179');if(!response.ok)throw Error('Fall animation missing');
+   const response=await fetch(url+'?v=180');if(!response.ok)throw Error('Fall animation missing');
    attach(model,await response.json());ready=true;
   }catch(e){error=e.message;console.warn('Fall173',e.message);}
  }
@@ -55,7 +55,7 @@ window.Fall173=(()=>{
   const sprint=input.fast&&input.forward&&!input.backward&&eligible(),before=[...player.position],yaw=player.yaw;
   const result=walk(dt,input);
   if(sprint&&player.grounded){
-   const fwd=[-Math.sin(yaw),0,-Math.cos(yaw)],expected=1.5*PLAYER_SCALE*state.speed*2.4*dt,moved=(player.position[0]-before[0])*fwd[0]+(player.position[2]-before[2])*fwd[2];
+   const fwd=[-Math.sin(yaw),0,-Math.cos(yaw)],expected=(window.playerSpeed179?.(true,false)??1.5*PLAYER_SCALE*state.speed*2.4)*dt,moved=(player.position[0]-before[0])*fwd[0]+(player.position[2]-before[2])*fwd[2];
    blocked=moved<expected*.2?blocked+1:0;
    if(blocked>=BLOCKED_FRAMES)start({cause:'sprint',push:fwd});
   }else blocked=0;
