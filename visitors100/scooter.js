@@ -115,13 +115,14 @@ window.Scooter100=(()=>{
   const world=[],rebuild=()=>{for(const i of m.order)world[i]=mm(world[m.parents.get(i)]||IDENTITY,trs(a.pose[i]));},find=(side,part)=>m.j.nodes.findIndex(n=>(n.name||'').split(':').pop()===side+part);
   rebuild();const hip=world[m.skins[0].joints[0]],correction=a.bindHip?[hip[12]-a.bindHip[0],0,hip[14]-a.bindHip[1]]:[0,0,0],actor=actorMatrix(a),inverse=CharacterFitting.invert4(actor);poseError=[];
   for(const [si,side]of ['Left','Right'].entries())for(const limb of ['arm','leg']){
-   const end=find(side,limb==='arm'?'Hand':'Foot'),contact=limb==='arm'?find(side,'HandMiddle1'):end,chain=limb==='arm'?[find(side,'ForeArm'),find(side,'Arm')]:[find(side,'Leg'),find(side,'UpLeg')];if(end<0||contact<0||chain.some(i=>i<0))continue;
+   const end=find(side,limb==='arm'?'Hand':'Foot'),contact=limb==='arm'?(find(side,'HandMiddle1')>=0?find(side,'HandMiddle1'):find(side,'HandIndex1')):end,chain=limb==='arm'?[find(side,'ForeArm'),find(side,'Arm')]:[find(side,'Leg'),find(side,'UpLeg')];if(end<0||contact<0||chain.some(i=>i<0))continue;
    const grip=BikeData128.fit?.grip||[.295,1.291,.398];
    const anchor=ride().kind==='bike'?(limb==='arm'?[si===0?grip[0]:-grip[0],grip[1],grip[2]]:[si===0?.155:-.155,.34,si===0?.10:-.10]):isSegway(activeId)?(limb==='arm'?[si===0?.16:-.16,1.24,.323]:[si===0?.15:-.15,.345,-.035]):(limb==='arm'?[si===0?.195:-.195,1.205,.218]:[si===0?.045:-.045,.285,si===0?.055:-.245]),targetWorld=tp(root(),...anchor);
    let target=add(tp(inverse,...targetWorld),correction),handRotation=null;
    if(limb==='arm'){
     const origin=tp(inverse,...tp(root(),0,0,0)),direction=v=>norm(sub(tp(inverse,...tp(root(),...v)),origin)),desired=direction([0,-.2,1]);
-    const offset=sub(world[contact].slice(12,15),world[end].slice(12,15)),q1=between(norm(offset),desired),index=find(side,'HandIndex1'),pinky=find(side,'HandPinky1');
+    const offset=sub(world[contact].slice(12,15),world[end].slice(12,15)),q1=between(norm(offset),desired),index=find(side,'HandIndex1'),pinky=find(side,'HandPinky1')>=0?find(side,'HandPinky1'):end;   // rigs without a pinky: the knuckle-to-wrist line still gives the palm's side
+    if(index<0)continue;
     const across=qrotate(q1,norm(sub(world[index].slice(12,15),world[pinky].slice(12,15)))),flat=norm(sub(across,mul(desired,dot(across,desired)))),wanted=direction([si===0?-1:1,0,0]);
     const angle=Math.atan2(dot(desired,cross(flat,wanted)),clamp(dot(flat,wanted),-1,1)),q2=[...mul(desired,Math.sin(angle/2)),Math.cos(angle/2)],adjust=qmul(q2,q1);
     const rotations=[];for(const i of m.order)rotations[i]=qmul(rotations[m.parents.get(i)]||[0,0,0,1],a.pose[i].rotation);

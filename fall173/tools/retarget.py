@@ -2,10 +2,11 @@
 # rotation deltas from the shared T-pose, converting Blender (Z up) to glTF
 # (Y up). Writes {clips:{name:{fps,frames,bones,rot,hips}}} for the game and
 # prints a forward-kinematics check of Brad's head/feet heights.
-import sys,json,math
+import sys,json,math,os
 sys.path.insert(0,sys.argv[1]);from gltf_math import *
 D=sys.argv[1]
-j,bin=load_glb(D+'/brad.glb');W,par=node_world(j)
+TARGET=sys.argv[2] if len(sys.argv)>2 else D+'/brad.glb';OUT=sys.argv[3] if len(sys.argv)>3 else D+'/brad-fall.json'
+j,bin=load_glb(TARGET);W,par=node_world(j)
 idx={n.get('name'):i for i,n in enumerate(j['nodes'])}
 bones=[n for n in (j['nodes'][i]['name'] for i in j['skins'][0]['joints'])]
 short=lambda n:n.split(':')[-1]
@@ -14,8 +15,10 @@ def b2g(q):w,x,y,z=q;return qnorm([x,z,-y,w])   # Blender (w,x,y,z) -> glTF (x,y
 arm=par[idx['mixamorig:Hips']];armQ=wq(arm);armS=math.sqrt(sum(W[arm][r][0]**2 for r in range(3)))
 restT={b:wq(idx[b]) for b in bones}
 hip0=[W[idx['mixamorig:Hips']][r][3] for r in range(3)]
+# feet height in the target's bind space (Brad stands on 0; some exports are centred)
+GROUND=min(j['accessors'][pr['attributes']['POSITION']]['min'][1] for m in j['meshes'] for pr in m['primitives'] if 'JOINTS_0' in pr['attributes'])
 def convert(name,src,first,last):
-    d=json.load(open(src));rest=d['rest'];k=hip0[1]/rest['Hips']['p'][2]
+    d=json.load(open(src));rest=d['rest'];k=(hip0[1]-GROUND)/rest['Hips']['p'][2]
     RS={s:b2g(v['q']) for s,v in rest.items()};PS0=rest['Hips']['p']
     out_rot=[];out_hips=[];prev={}
     for fr in d['frames']:
@@ -54,5 +57,5 @@ for name,c in clips.items():
 # compact output: 4 decimals
 for c in clips.values():
     c['rot']=[[round(v,4) for v in row] for row in c['rot']];c['hips']=[[round(v,2) for v in row] for row in c['hips']]
-json.dump({'source':'fall.fbx frames 6-62, Getting Up.fbx frames 1-66 (Mixamo), retargeted to brad_character','clips':clips},open(D+'/brad-fall.json','w'),separators=(',',':'))
-import os;print('size',os.path.getsize(D+'/brad-fall.json'))
+json.dump({'source':'fall.fbx frames 6-62, Getting Up.fbx frames 1-66 (Mixamo), retargeted to '+os.path.basename(TARGET),'clips':clips},open(OUT,'w'),separators=(',',':'))
+print('size',os.path.getsize(OUT))

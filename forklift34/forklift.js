@@ -184,7 +184,7 @@ const Forklift34 = (() => {
     const m=a.model;
     if(!a.forkliftArms) a.forkliftArms=['Left','Right'].map(side=>{
       const find=part=>m.j.nodes.findIndex(n=>(n.name||'').split(':').pop()===side+part);
-      return {upper:find('Arm'),elbow:find('ForeArm'),palm:find('HandMiddle1'),hand:find('Hand')};
+      return {upper:find('Arm'),elbow:find('ForeArm'),palm:find('HandMiddle1')>=0?find('HandMiddle1'):find('HandIndex1'),hand:find('Hand')};
     });
     const world=[];
     const rebuild=()=>{for(const i of m.order)world[i]=mm(world[m.parents.get(i)]||IDENTITY,trs(a.pose[i]));};

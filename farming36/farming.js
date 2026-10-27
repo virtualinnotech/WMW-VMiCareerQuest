@@ -234,7 +234,7 @@ const Farming36=(()=>{
   }
   if(!a.farmArms)a.farmArms=['Left','Right'].map(side=>{
    const find=part=>m.j.nodes.findIndex(n=>(n.name||'').split(':').pop()===side+part);
-   return {upper:find('Arm'),elbow:find('ForeArm'),hand:find('Hand'),palm:find('HandMiddle1')};
+   return {upper:find('Arm'),elbow:find('ForeArm'),hand:find('Hand'),palm:find('HandMiddle1')>=0?find('HandMiddle1'):find('HandIndex1')};
   });
   const world=[],rebuild=()=>{for(const i of m.order)world[i]=mm(world[m.parents.get(i)]||IDENTITY,trs(a.pose[i]));};rebuild();
   const hip=world[m.skins[0].joints[0]];seat(a,hip);

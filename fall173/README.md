@@ -1,6 +1,6 @@
 # Falls (173)
 
-Brad (the player) falls and gets back up when he:
+The player falls and gets back up when he:
 
 - sprints (Shift + forward) head-on into something solid — a wall, a car, a
   person. Walking into a wall, sliding along one or a slow bump never counts;
@@ -29,3 +29,8 @@ python3 tools/retarget.py <folder with brad.glb, fall.json, getting_up.json>
 maps each bone's world-space rotation away from the shared T-pose, so any
 Mixamo clip works regardless of the rig prefix (mixamorig7: and so on); the
 script prints head, hip and feet heights as a check.
+
+`player_boy-fall.json` is the same pair of clips retargeted to the player
+boy's skeleton (players177). `retarget.py` now takes the target GLB and
+output path, and measures the hip drop from the target's feet, so rigs that
+are centred on the hips (like his) land on the floor.

@@ -1,7 +1,7 @@
 /* Falls (173). When the player sprints head-on into something solid (a wall,
- * a car, a person) or crashes a bike, scooter or Segway, Brad stumbles and
- * falls, then gets back up. The clips are the supplied Mixamo "fall" and
- * "Getting Up" animations retargeted to Brad's skeleton (tools/retarget.py);
+ * a car, a person) or crashes a bike, scooter or Segway, the player stumbles
+ * and falls, then gets back up. The clips are the supplied Mixamo "fall" and
+ * "Getting Up" animations retargeted to each player rig (tools/retarget.py);
  * movement is locked until he is standing again. Walking into a wall or a
  * slow bump never triggers a fall. */
 window.Fall173=(()=>{
@@ -21,8 +21,10 @@ window.Fall173=(()=>{
  async function load(){
   try{
    while(!characterState.player?.model)await new Promise(r=>setTimeout(r,500));
-   const response=await fetch('./fall173/brad-fall.json?v=173');if(!response.ok)throw Error('Fall animation missing');
-   attach(characterState.player.model,await response.json());ready=true;
+   // Each player rig has its own retargeted copy (player_boy-fall.json for the boy).
+   const model=characterState.player.model,url=model.j.extras?.player177?.falls||'./fall173/brad-fall.json';
+   const response=await fetch(url+'?v=177');if(!response.ok)throw Error('Fall animation missing');
+   attach(model,await response.json());ready=true;
   }catch(e){error=e.message;console.warn('Fall173',e.message);}
  }
 

@@ -1099,7 +1099,7 @@ function advancePlayer(dt,input){
     if(player.grounded&&District115.safeWalk(player.position[0],player.position[2],PHYSICS.radii[0]))player.safePosition118=[...player.position];
   }
   const actualTravel=Math.hypot(player.position[0]-startPosition[0],player.position[2]-startPosition[2]);
-  player.walkAmount=actualTravel>.0005?travel:0;player.phase+=actualTravel*5/PLAYER_SCALE;
+  player.walkAmount=actualTravel>.0005?travel:0;player.running=!!input.fast&&travel>0;player.phase+=actualTravel*5/PLAYER_SCALE;
 }
 
 /* Small glTF 2.0 TRS animation player for the permanent exhibit sculptures.
@@ -2065,6 +2065,10 @@ const CharacterFitting = (() => {
    stay embedded/local; no company information is sent to the CDN. */
 const NEW_STUDENT_FILES=["fig0027","fig0098","fig0143","fig0147","fig0151","fig0160","fig0165"];
 const isNewStudent=id=>NEW_STUDENT_FILES.includes(id);
+// The player character (players177): a supplied Mixamo-rigged boy with his own
+// idle, walk, backward walk, run and sit clips. Brad stays for the crowd and is
+// the player only if this file cannot load.
+const PLAYER_MODEL177='player_boy',isPlayerModel177=id=>id===PLAYER_MODEL177;
 const CHARACTER_HEIGHT=.72;
 // Ambient crowd, staff and the player all shrink together via
 // sectorScaleAt(x,z) (defined near DISCOVERY_LAYOUT) -- rendering size
@@ -2093,10 +2097,10 @@ function decodeCharacterPrimitive(j,bin,pr,D){
 function characterClip(j,bin,a){const samp=a.samplers.map(s=>({times:accessor(j,bin,s.input),values:accessor(j,bin,s.output),interpolation:s.interpolation||'LINEAR'}));return{name:a.name,duration:Math.max(...samp.map(s=>s.times[s.times.length-1])),channels:a.channels.map(c=>({node:c.target.node,path:c.target.path,...samp[c.sampler]}))};}
 async function loadCharacterModelRaw18(id,D){
  if(gl.isContextLost())throw Error("The graphics context has reset. Restart the empty venue.");MCQDiagnostics18.stage="loading model "+id;
- let ab;if(isNewStudent(id)){const response=await fetch('./students17/'+id+'.glb?motion=19',{cache:'no-cache'});if(!response.ok)throw Error('Missing students17/'+id+'.glb. Copy the students17 folder beside index.html.');ab=await response.arrayBuffer();}else{const data=$('character-'+id).textContent.trim(),gz=decodeBase64Bytes(data);ab=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}const{json:j,bin}=parseGLB(ab);if(isNewStudent(id)&&!j.extras?.motionRevision19)throw Error('Old animation file for '+id+'. Replace the students17 folder with the DEV19 models and refresh.');
+ let ab;if(isPlayerModel177(id)){const response=await fetch('./players177/'+id+'.glb?v=177');if(!response.ok)throw Error('Missing players177/'+id+'.glb');ab=await response.arrayBuffer();}else if(isNewStudent(id)){const response=await fetch('./students17/'+id+'.glb?motion=19',{cache:'no-cache'});if(!response.ok)throw Error('Missing students17/'+id+'.glb. Copy the students17 folder beside index.html.');ab=await response.arrayBuffer();}else{const data=$('character-'+id).textContent.trim(),gz=decodeBase64Bytes(data);ab=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}const{json:j,bin}=parseGLB(ab);if(isNewStudent(id)&&!j.extras?.motionRevision19)throw Error('Old animation file for '+id+'. Replace the students17 folder with the DEV19 models and refresh.');
  const parents=new Map(),order=[];j.nodes.forEach((n,i)=>(n.children||[]).forEach(k=>parents.set(k,i)));function visit(i){order.push(i);for(const c of j.nodes[i].children||[])visit(c);}for(const r of j.scenes[j.scene||0].nodes)visit(r);
  const clips=(j.animations||[]).map(a=>characterClip(j,bin,a));const pick=word=>clips.find(c=>new RegExp(word,'i').test(c.name));
- const model={id,j,order,parents,clips,idle:pick('idle'),walk:pick('walk'),back:pick('backward'),wave:pick('wave'),parts:[],lo:[Infinity,Infinity,Infinity],hi:[-Infinity,-Infinity,-Infinity],skins:j.skins.map(s=>({...s,ibm:accessor(j,bin,s.inverseBindMatrices)}))};
+ const model={id,j,order,parents,clips,idle:pick('idle'),walk:pick('walk'),back:pick('backward'),wave:pick('wave'),run:isPlayerModel177(id)?pick('run'):null,parts:[],lo:[Infinity,Infinity,Infinity],hi:[-Infinity,-Infinity,-Infinity],skins:j.skins.map(s=>({...s,ibm:accessor(j,bin,s.inverseBindMatrices)}))};
  const maps=new Map();model.textureRefs18=[];
  const originals=[];
  for(let ni=0;ni<j.nodes.length;ni++){const node=j.nodes[ni];if(node.mesh===undefined||node.extras?.crowdAddedV11||/(?:^|[_\s-])(?:helmet|hat|cap)(?:$|[_\s-])/i.test(node.name||""))continue;
@@ -2108,7 +2112,7 @@ async function loadCharacterModelRaw18(id,D){
   }
  }
  const authored=j.extras?.crowdAppearanceV11?.bodyBounds;if(authored){model.lo=authored.min.slice();model.hi=authored.max.slice();}model.scale=CHARACTER_HEIGHT/(model.hi[1]-model.lo[1]);model.offset=[-(model.lo[0]+model.hi[0])/2,-model.lo[1],-(model.lo[2]+model.hi[2])/2];
- let fitted;if(isNewStudent(id)){model.exportBin=bin;model.logoInkMaps=new Map();model.fitReport={model:id,originalColors:true,backpack:{disabled:true},hat:{disabled:true,headSamples:0},logo:{rectangle:[0,0,0,0],frontGateZ:0,triangles:0,inkPixels:0},source:'Original student rig; supplied Standard Walk.fbx and Idle.fbx retargeted'};fitted=originals;}else fitted=await CharacterFitting.fit(model,bin,originals);
+ let fitted;if(isNewStudent(id)||isPlayerModel177(id)){model.exportBin=bin;model.logoInkMaps=new Map();model.fitReport={model:id,originalColors:true,backpack:{disabled:true},hat:{disabled:true,headSamples:0},logo:{rectangle:[0,0,0,0],frontGateZ:0,triangles:0,inkPixels:0},source:'Original student rig; supplied Standard Walk.fbx and Idle.fbx retargeted'};fitted=originals;}else fitted=await CharacterFitting.fit(model,bin,originals);
  await loadRetainedCharacterTextures18(model,bin,fitted,maps);if(isNewStudent(id))await StudentLooks32.prepare(model,bin,maps,fitted);
  for(const part of fitted){if(gl.isContextLost())throw Error("Graphics reset while preparing "+id);const {positions:p,normals:n,uv,indices,weights,joints}=part.source;const data=new Float32Array(p.length*2);for(let i=0;i<p.length;i+=3)data.set([p[i],p[i+1],p[i+2],n[i],n[i+1],n[i+2]],i*2);
   if(part.materialIndex<0||!j.materials[part.materialIndex])throw Error('Missing fitted-accessory material: '+part.name);
@@ -2123,21 +2127,24 @@ function createActor(model,config){
  for(const skin of model.skins){const t=gl.createTexture();gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32F,4,skin.joints.length,0,gl.RGBA,gl.FLOAT,new Float32Array(skin.joints.length*16));gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);actor.textures.push({t,data:new Float32Array(skin.joints.length*16)});}gl.activeTexture(gl.TEXTURE0);return actor;
 }
 function poseActor(a,dt,force=false){
- const m=a.model;let mode=a.player?(window.Fall173?.mode(a)||(player.walkAmount>0?'walk':player.walkAmount<0?'back':'idle')):'idle';
+ const m=a.model;let mode=a.player?(window.Fall173?.mode(a)||(player.walkAmount>0?(player.running&&m.run?'run':'walk'):player.walkAmount<0?'back':'idle')):'idle';
  // The playable character only idles or walks in the crowd test.
  if(!a.player&&a.canWave&&state.animatePeople!==false&&a.model.wave){const near=Math.hypot(player.position[0]-a.position[0],player.position[2]-a.position[2])<2.0;if(near&&characterState.time-a.lastWave>18){a.lastWave=characterState.time;a.waveUntil=characterState.time+a.model.wave.duration;}if(a.waveUntil>characterState.time)mode='wave';}
  if(a.inspectionMode)mode=a.inspectionMode;const clip=m[mode]||m.idle;if(a.mode!==mode){a.previous=a.pose.map(p=>({translation:p.translation.slice(),rotation:p.rotation.slice(),scale:p.scale.slice(),...(p.matrix?{matrix:p.matrix}:{})}));a.mode=mode;a.clock=0;a.blend=0;}
  const advancing=a.player||state.animatePeople!==false;if(advancing)a.clock+=Math.min(dt,.1)*(clip.once?clip.rate||1:a.player&&mode!=='idle'&&mode!=='wave'?Math.max(.8,state.speed*.75):1);a.blend=Math.min(1,a.blend+dt/0.20);
  // One-shot clips (a fall, getting up) hold their last frame instead of looping.
  const time=clip.once?Math.min(a.clock,clip.duration):(a.clock+a.phase)%Math.max(.001,clip.duration);for(const ch of clip.channels){if(!['translation','rotation','scale'].includes(ch.path))continue;let value=sampleLandmarkChannel(ch,time);if(a.previous&&a.blend<1){const p=a.previous[ch.node][ch.path];value=ch.path==='rotation'?quaternionSlerp(p,value,a.blend):value.map((x,i)=>p[i]+(x-p[i])*a.blend);}delete a.pose[ch.node].matrix;a.pose[ch.node][ch.path]=value;}
- window.Forklift34?.seatedPose(a);
- window.Farming36?.seatedPose(a);
- window.FarmVehicles53?.pose(a);
- window.FarmTruck67?.pose(a);
- window.Crane39?.seatedPose(a);
- window.Network40?.repairPose(a);
- window.MRI42?.pose(a);
- window.Scooter100?.pose(a);
+ // A ride or vehicle pose that cannot fit a rig must never stop the frame loop.
+ try{
+  window.Forklift34?.seatedPose(a);
+  window.Farming36?.seatedPose(a);
+  window.FarmVehicles53?.pose(a);
+  window.FarmTruck67?.pose(a);
+  window.Crane39?.seatedPose(a);
+  window.Network40?.repairPose(a);
+  window.MRI42?.pose(a);
+  window.Scooter100?.pose(a);
+ }catch(e){if(!a.poseError177){a.poseError177=e.message;console.warn('Pose skipped for',a.model.id+':',e.message);}}
  for(const i of m.order)a.world[i]=mm(a.world[m.parents.get(i)]||IDENTITY,trs(a.pose[i]));
  // Keep locomotion in-place; controller owns XZ movement. Do not remove vertical gait.
  const hip=m.skins[0].joints[0],hw=a.world[hip];if(!a.bindHip){const bw=[];for(const i of m.order)bw[i]=mm(bw[m.parents.get(i)]||IDENTITY,trs(m.j.nodes[i]));a.bindHip=[bw[hip][12],bw[hip][14]];}
@@ -2171,7 +2178,9 @@ function charactersUI(){if($('characterPanel'))return;if(state.animatePeople===u
 }
 function nearestStaff(){let best=null,d=1.4;for(const a of [...characterState.actors,...(window.Crowd?.representatives()||[]),...(window.Crowd?.volunteers()||[]),...EventFlow22.forInteraction()]){if(a.player||!a.position||Math.abs(player.position[1]-PHYSICS.radii[1]-a.position[1])>.65)continue;const dd=Math.hypot(player.position[0]-a.position[0],player.position[2]-a.position[2]);if(dd<d){best=a;d=dd;}}return best;}
 function askNearestStaff(){const a=nearestStaff();if(!a)return;if(a.boothId&&window.MissionUI99?.openBooth(a.boothId))return;HubGuide.open();HubGuide.ask(a.boothId?shippedBooths.get(a.boothId)?.name:(a.industry||'Where is Information?'));$('hubTitle').textContent=a.name+' - '+a.role;}
-async function initCharacters(){charactersUI();if(characterState.status==='loading'||characterState.status==='ready')return;characterState.status='loading';characterMessage('Loading your animated characters... Internet is used only for the Draco decoder.');try{const D=await loadCharacterDecoder();for(const id of CHARACTER_FILES){if(characterState.models.has(id))continue;characterMessage('Preparing '+id.replace('_character','')+' ('+(characterState.models.size+1)+'/20)...');const model=await loadCharacterModel(id,D);characterState.models.set(id,model);characterState.loaded=characterState.models.size;if(id==='brad_character'&&!characterState.player){characterState.player=createActor(model,{player:true,name:'Brad'});characterState.actors.push(characterState.player);}await new Promise(r=>setTimeout(r,0));}
+async function initCharacters(){charactersUI();if(characterState.status==='loading'||characterState.status==='ready')return;characterState.status='loading';characterMessage('Loading your animated characters... Internet is used only for the Draco decoder.');try{const D=await loadCharacterDecoder();
+ try{const model=await loadCharacterModel(PLAYER_MODEL177,D);characterState.playerModel177=model;if(!characterState.player){characterState.player=createActor(model,{player:true,name:'Player'});characterState.actors.push(characterState.player);}}catch(e){console.warn('Player character unavailable; Brad plays instead:',e.message);}
+ for(const id of CHARACTER_FILES){if(characterState.models.has(id))continue;characterMessage('Preparing '+id.replace('_character','')+' ('+(characterState.models.size+1)+'/20)...');const model=await loadCharacterModel(id,D);characterState.models.set(id,model);characterState.loaded=characterState.models.size;if(id==='brad_character'&&!characterState.player){characterState.player=createActor(model,{player:true,name:'Brad'});characterState.actors.push(characterState.player);}await new Promise(r=>setTimeout(r,0));}
  // Volunteers now belong to the counted crowd: no extra duplicate helper actors.
  characterState.status='ready';characterState.error=null;characterMessage('20 models ready: 13 originals plus 7 new students. Brad and the 50 purple-shirt helpers are unchanged.');if(window.Crowd&&crowdState.targetCount>0)Crowd.start();}catch(e){characterState.status='error';characterState.error=e.message;characterMessage(e.message,true);console.warn('Character loading:',e.message);}}
 window.AnimatedCharacters={init:initCharacters,reposition:repositionStaff,update(dt){characterState.time+=Math.max(0,Math.min(dt,.10));for(const a of characterState.actors)if(!window.FarmScene63?.active||a.player)poseActor(a,dt);if($('staffPrompt')){const a=nearestStaff();$('staffPrompt').hidden=!a||state.showStaff===false||state.overview||HubGuide.snapshot().near||HubGuide.snapshot().dialogOpen||!!window.BoothMedia162?.claimsE();if(a)$('staffPrompt').textContent='E - Ask '+a.name+' ('+a.role+')';}},draw(planes){for(const a of characterState.actors)if(a.player||!window.FarmScene63?.active&&state.showStaff!==false)drawActor(a,planes);},hasPlayer(){return !!characterState.player;},snapshot(){return{status:characterState.status,message:characterState.message,loaded:characterState.loaded,error:characterState.error,player:characterState.player?.model.id,actors:characterState.actors.map(a=>({name:a.name,industry:a.industry,position:a.position,clip:a.mode,model:a.model.id,height:CHARACTER_HEIGHT,clips:a.model.clips.map(c=>c.name)}))};},testPose:poseActor,testCreate:createActor,testDecode:decodeCharacterPrimitive,testModel:loadCharacterModel};
@@ -2651,7 +2660,7 @@ install(){if($('previewNewStudents'))return;const b=document.createElement('butt
     if(gl.isContextLost())throw Error('Graphics reset while uploading '+model.id);
     const mat=model.j.materials[mi],ti=mat?.extras?.crowdNeutralTextureIndex??mat?.pbrMetallicRoughness?.baseColorTexture?.index;
     if(ti==null)continue;
-    if(!memo.has(ti)){const texture=await embeddedGLBTexture(model.j,bin,ti);memo.set(ti,texture);model.textureRefs18.push(texture);}
+    if(!memo.has(ti)){const texture=await embeddedGLBTexture(model.j,bin,ti,isPlayerModel177(model.id)?2048:1024);memo.set(ti,texture);model.textureRefs18.push(texture);}
     maps.set(mi,memo.get(ti));
    }
    model.textureCount18=memo.size;
@@ -4483,14 +4492,14 @@ function revealStudentGamification(){
  revealStudentGamification();showEmployerEditOverlay();canvas.focus();requestAnimationFrame(loop);
 }catch(e){console.error(e);showError(e.message||String(e));window.parent.postMessage({_mcq:true,token:window.SHIP_TOKEN,event:'venue-error',error:e.message||String(e)},'*');}})();
 </script>
-<script src="./forklift34/forklift.js?v=20261020-loading155"></script>
+<script src="./forklift34/forklift.js?v=20261026-boy177"></script>
 <script src="./ambulance35/vendor/matter.min.js"></script>
 <script src="./ambulance35/recovery123.js?v=20261015-recovery123"></script>
 <script src="./ambulance35/vehicle-physics.js?v=20261021-crash162"></script>
 <script src="./ambulance35/driving154.js?v=20261020-driving154"></script>
 <script src="./ambulance35/minimap120.js?v=20261015-recovery123"></script>
 <script src="./ambulance35/ambulance.js?v=20261022-camera162"></script>
-<script src="./farming36/farming.js?v=20261020-loading155"></script>
+<script src="./farming36/farming.js?v=20261026-boy177"></script>
 <script src="./robotics37/robot-core.js?v=20260929-robot1"></script>
 <script src="./robotics37/console.js?v=20261019-hospitality141"></script>
 <script src="./robotics37/robotics.js?v=20261019-hospitality141"></script>
@@ -4537,8 +4546,8 @@ function revealStudentGamification(){
 <script src="./visitors100/rides103-data.js?v=20261012-rides104"></script>
 <script src="./city106/street128/bike-data.js?v=20261016-street128"></script>
 <script src="./city106/street128/docks.js?v=20261016-materials129"></script>
-<script src="./visitors100/scooter.js?v=20261023-fall173"></script>
-<script src="./fall173/fall.js?v=20261023-fall173"></script>
+<script src="./visitors100/scooter.js?v=20261026-boy177"></script>
+<script src="./fall173/fall.js?v=20261026-boy177"></script>
 <link rel="stylesheet" href="./boothmedia162/media.css?v=20261022-media162">
 <script src="./boothmedia162/media.js?v=20261022-media162"></script>
 <script src="./visitors100/wayfinder103.js?v=20261022-pacing164"></script>
