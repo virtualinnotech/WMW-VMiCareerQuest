@@ -2088,7 +2088,9 @@ const isNewStudent=id=>NEW_STUDENT_FILES.includes(id);
 // idle, walk, backward walk, run and sit clips. Brad stays for the crowd and is
 // the player only if this file cannot load.
 // The kids (and their lighter crowd copies, kidNN-crowd) load from players177 at kid height.
-const PLAYER_MODEL177='player_boy',isPlayerModel177=id=>id===PLAYER_MODEL177||/^kid0[1-8](-crowd)?$/.test(id);
+const PLAYER_MODEL177='player_boy',isPlayerModel177=id=>id===PLAYER_MODEL177||/^kid0[1-8](-crowd)?$/.test(id)||/^npc\d\d-crowd$/.test(id);
+// Crowd kids: the eight from the character select and the thirteen extra NPCs (182).
+const isCrowdKid179=id=>/^(kid0[1-8]|npc\d\d)-crowd$/.test(id||'');
 const CHARACTER_HEIGHT=.72;
 // The student characters are kids: about 78% of the adults' height. The
 // collision body stays the same size; the camera aims at the kid's head.
@@ -2130,7 +2132,9 @@ function playerHeadLift178(){const k=characterState.player&&isPlayerModel177(cha
 // chaperones and booth staff. The older scanned students (students17) are no
 // longer loaded.
 const KID_FILES179=['kid01','kid02','kid03','kid04','kid05','kid06','kid07','kid08'].map(id=>id+'-crowd');
-const CHARACTER_FILES=['brad_character','sara_character','pete_construction','suzie','zoe','roger_character','liz','kate_character','joe','jason_character','james_character','dave_character','adam_character',...KID_FILES179];
+// Thirteen more kids who are only ever in the crowd (players177/npcNN-crowd.glb), npc02 being the denim boy.
+const NPC_FILES182=Array.from({length:13},(_,i)=>'npc'+String(i+1).padStart(2,'0')+'-crowd');
+const CHARACTER_FILES=['brad_character','sara_character','pete_construction','suzie','zoe','roger_character','liz','kate_character','joe','jason_character','james_character','dave_character','adam_character',...KID_FILES179,...NPC_FILES182];
 const isAdultFile179=id=>!isNewStudent(id)&&!isPlayerModel177(id);
 const characterState={status:'waiting',message:'Characters have not started loading.',models:new Map(),actors:[],player:null,time:0,error:null,decoder:null,loaded:0};
 function characterMessage(text,error=false){characterState.message=text;const e=$('characterStatus');if(e){e.textContent=text;e.style.color=error?'#ffd2a1':'';} }
@@ -2244,6 +2248,8 @@ async function loadPlayer179(D){
  else{const brad=characterState.models.get('brad_character');if(brad)characterState.player=createActor(brad,{player:true,name:'Brad'});}
  if(characterState.player)characterState.actors.push(characterState.player);
  characterState.playerReady=true;
+ // The crowd may already be walking: take the student's character out of it.
+ if(crowdState.sim)assignCrowdModels();
 }
 async function initCharacters(){charactersUI();if(characterState.status==='loading'||characterState.status==='ready')return;characterState.status='loading';characterMessage('Loading your animated characters... Internet is used only for the Draco decoder.');try{const D=await loadCharacterDecoder();
  for(const id of CHARACTER_FILES){if(characterState.models.has(id))continue;characterMessage('Preparing '+id.replace('_character','')+' ('+(characterState.models.size+1)+'/'+CHARACTER_FILES.length+')...');const model=await loadCharacterModel(id,D);characterState.models.set(id,model);characterState.loaded=characterState.models.size;await new Promise(r=>setTimeout(r,0));}
@@ -2523,7 +2529,9 @@ function crowdConfig(){return{version:2,appearanceSeed:crowdState.appearanceSeed
 function setCrowdCount(value){const n=Number(value);if(!Number.isFinite(n))return;crowdState.targetCount=(n<=0?0:Math.max(50,Math.min(1500,Math.round(n))));if(crowdState.sim){CrowdCore.resize(crowdState.sim,crowdState.targetCount);CrowdSocial.configure(crowdState.sim,DISCOVERY_LAYOUT.gates||[]);assignCrowdModels();}if($('crowdCount'))$('crowdCount').value=String(crowdState.targetCount);crowdUIUpdate(true);if(!crowdState.sim&&characterState.status==='ready')startCrowd();}
 function assignCrowdModels(){
    if(!crowdState.sim||!crowdState.walkingModels.length)return;
-   const original=CHARACTER_FILES.filter(isAdultFile179).map(id=>characterState.models.get(id)).filter(Boolean),walking=original.filter(m=>m.walk),kids=KID_FILES179.map(id=>characterState.models.get(id)).filter(m=>m?.walk);
+   const original=CHARACTER_FILES.filter(isAdultFile179).map(id=>characterState.models.get(id)).filter(Boolean),walking=original.filter(m=>m.walk);
+   // The student's own character is never in the crowd: theirs is unique.
+   const own=characterState.player?.model?.id,mine=own===PLAYER_MODEL177?'npc02-crowd':own+'-crowd',kids=[...KID_FILES179,...NPC_FILES182].filter(id=>id!==mine).map(id=>characterState.models.get(id)).filter(m=>m?.walk);
    for(const a of crowdState.sim.agents){
     // Volunteers (purple shirts) and the first 20 other people are adults, the chaperones; everyone else is a kid.
     if(a.volunteer||a.id<70||!kids.length)a.model=a.stationed?original[a.id%original.length]:walking[a.id%walking.length];
@@ -2531,7 +2539,7 @@ function assignCrowdModels(){
     if(!a.volunteer&&a.id<70)a.role='Chaperone';
     // Adults' walk covers .55 a clip second; a kid's covers its own measured stride.
     // Kids walk that much slower, so their steps keep the same pace and never slide.
-    a.baseSpeed179??=a.speed;const stride=/^kid0[1-8]/.test(a.model.id)?gait179(a.model).walk*a.model.scale:0;
+    a.baseSpeed179??=a.speed;const stride=isCrowdKid179(a.model.id)?gait179(a.model).walk*a.model.scale:0;
     a.stride179=stride||null;a.speed=stride?a.baseSpeed179*stride/.55:a.baseSpeed179;
     if(a.id===40&&a.stationed)a.model=characterState.models.get('sara_character');
     a.outfit=CrowdWardrobe.appearance(a.id,crowdState.appearanceSeed,a.model);

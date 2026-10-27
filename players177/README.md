@@ -28,6 +28,24 @@ full original mesh for close by, and 15,000 and 5,000 triangles (`@lod1`,
 `@lod2`, face and hands kept detailed in the first) for the middle and far
 distances; the game uses these instead of simplifying the mesh itself.
 
+Thirteen more kids from the supplied "NPC's" pack are only ever in the crowd
+(`npc01-crowd.glb` ... `npc13-crowd.glb`; npc02 is the denim boy). They keep
+their own look and are drawn at the same height as the other kids. Built by
+`tools/build_npcs.py` (shared steps in `tools/rigtools.py`):
+
+```
+blender -b --factory-startup --python tools/build_npcs.py -- <NPC pack folder> <kids pack folder> .
+```
+
+Each uses its own idle and walk except npc01 (no idle: kid01's) and npc06 (no
+clips: kid04's), retargeted bone by bone. Rigs that face sideways are turned
+forward; clips that face sideways (npc04, npc08) are turned by their hips; and
+clips placed for a rig with its feet at 0 (npc01-03) have their hips moved so
+they stand on the T-pose soles, which the game puts on the floor.
+
+The student's own character is never in the crowd: the crowd is built from
+every kid except the one they chose (`assignCrowdModels` in venue-frame.html).
+
 Walking speed comes from the feet: the game measures how fast each kid's
 planted foot moves in walk, run and backward walk (gait179) and moves the
 body at exactly that speed times the clip's playback rate, so feet never

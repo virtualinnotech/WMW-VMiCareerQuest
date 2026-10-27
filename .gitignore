@@ -23,3 +23,4 @@ city106/city.glb
 # Original user-supplied dog archives are kept on the Desktop, not shipped.
 city106/dogs112/source-dog/
 city106/dogs112/source-retriever/
+__pycache__/
