@@ -1,6 +1,10 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeVos Place | Architectural Exterior v4.8</title>
 <script>
+// Chrome's autofill (filling a name or school) sends key events with no key;
+// the game's keyboard handlers expect one, and an error while the fair loads
+// stops loading. Those events stop here, first; the autofill itself still works.
+for(const type of ['keydown','keyup','keypress'])addEventListener(type,e=>{if(typeof e.key!=='string')e.stopImmediatePropagation();},true);
 // Browsers can block storage for a game shown inside another website (school
 // cookie settings, private windows). Keep this visit's saves in memory then;
 // journey codes still save progress to the server.
