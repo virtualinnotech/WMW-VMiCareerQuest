@@ -21,10 +21,13 @@ logo and menu words painted out, so the real (clickable) ones sit on top.
 The logo is `loading155/title158.png`. The heading font is Montserrat from
 Google Fonts, falling back to the system font.
 
-The carousel draws every kid live in one hidden WebGL2 canvas with the game's
-own Draco decoder, copying each picture into its card; the chosen kid loads
-first and plays a wave or jump when picked. Its graphics memory is freed when
-the student enters the fair.
+The carousel is one WebGL2 scene: the eight kids stand on round platforms
+around a circle seen from the front and a little above (the back row smaller
+and higher), all facing the viewer; the chosen kid's platform glows blue and
+they wave or jump. Arrows, the dots, dragging, arrow keys or clicking a kid
+turn the circle. Models are decoded with the game's own Draco decoder, the
+chosen kid first. Its graphics memory is freed when the student enters the
+fair.
 
 The fair waits for the choice before it makes the player (`loadPlayer179` in
 venue-frame.html); the loading screen's "characters" step waits for it too.

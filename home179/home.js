@@ -147,10 +147,12 @@ window.Home179=(()=>{
    field('w-school','School',{name:'school',autocomplete:'organization',maxlength:'80'}),
    h('button',{type:'submit',hidden:true}));
   ui.note=h('p',{class:'h-who-note'});
-  ring=h('div',{class:'h-ring',role:'radiogroup','aria-label':'Characters',tabindex:'0'});
-  cards=ROSTER.map((id,i)=>{const n=String(i+1).padStart(2,'0');const card=h('button',{type:'button',class:'h-card3d',role:'radio','aria-label':'Character '+n,'data-id':id,onclick:()=>{if(!dragged)choose(i);}},
-   h('canvas',{'aria-hidden':'true'}),h('span',{class:'h-wait'}),h('span',{class:'h-num'},n),h('span',{class:'h-check',html:ICON.check}),h('span',{class:'h-tag'},'SELECTED'));ring.append(card);return card;});
-  ring.append(h('button',{type:'button',class:'h-arrow prev','aria-label':'Previous character',html:ICON.left,onclick:()=>step(-1)}),h('button',{type:'button',class:'h-arrow next','aria-label':'Next character',html:ICON.right,onclick:()=>step(1)}));
+  ring=h('div',{class:'h-ring',role:'radiogroup','aria-label':'Characters'});
+  ui.canvas=h('canvas',{class:'h-stage','aria-hidden':'true'});ui.wait=h('span',{class:'h-wait','aria-hidden':'true'});
+  cards=ROSTER.map((id,i)=>h('button',{type:'button',class:'h-pick',role:'radio','aria-label':'Character '+String(i+1).padStart(2,'0'),onclick:()=>choose(i)}));
+  ui.dots=h('div',{class:'h-dots'},...ROSTER.map((id,i)=>h('button',{type:'button',class:'h-dot',tabindex:'-1','aria-hidden':'true',onclick:()=>choose(i)})));
+  ring.append(ui.canvas,ui.wait,h('div',{class:'h-picks'},...cards),ui.dots,
+   h('button',{type:'button',class:'h-arrow prev','aria-label':'Previous character',html:ICON.left,onclick:()=>step(-1)}),h('button',{type:'button',class:'h-arrow next','aria-label':'Next character',html:ICON.right,onclick:()=>step(1)}));
   dragInput();
   ui.go=h('button',{type:'button',class:'h-go',onclick:go,html:'LET’S GO '+ICON.arrow});
   ui.error=h('p',{class:'h-error',role:'alert'});
@@ -160,7 +162,7 @@ window.Home179=(()=>{
    h('div',{class:'h-heading'},h('h1',{class:'h-title'},'CHOOSE YOUR ',h('em',{},'CHARACTER')),h('p',{class:'h-sub'},'Pick your look. Explore every possibility.')),
    ui.form,ui.note,ring,h('div',{class:'h-go-row'},ui.go,ui.hint,ui.error),bottom);
   root.append(selectEl);paintSound();
-  addEventListener('resize',()=>{if(selectEl&&!selectEl.hidden){layout();previews?.resize(cardSize());}});
+  addEventListener('resize',()=>{if(selectEl&&!selectEl.hidden)kick();});
  }
  function paintSound(){if(!ui.sound)return;ui.sound.innerHTML=Sound179.muted?ICON.muted:ICON.sound;ui.sound.setAttribute('aria-label',Sound179.muted?'Turn sound on':'Turn sound off');}
  function openSelect(pick,firstName){
@@ -169,38 +171,29 @@ window.Home179=(()=>{
   const local=window.Journey166?.local;
   ui.note.textContent=!pickOnly&&local?'Starting a new game? '+local.firstName+'’s progress stays saved under code '+Journey166.prettyCode+'.':'';ui.note.hidden=!ui.note.textContent;
   ui.hint.textContent=pickOnly?(firstName?'Welcome back, '+firstName+'! Pick your character to keep going.':'Pick your character to keep going.'):'Choose any character to begin.';
-  homeEl.hidden=true;selectEl.hidden=false;layout();
+  homeEl.hidden=true;selectEl.hidden=false;paintCards();
   startPreviews();
   (pickOnly?ui.go:ui.form.elements.firstName).focus({preventScroll:true});
  }
  function backHome(){if(pickOnly)return;selectEl.hidden=true;homeEl.hidden=false;stopLoop();homeEl.querySelector('.h-menu button').focus({preventScroll:true});}
 
- // Cards sit around a ring seen in perspective: cards further back are smaller,
- // higher and drawn in toward the middle, so all eight show. The chosen one
- // turns to the front.
+ // The kids stand on platforms around a circle seen from the front and a little
+ // above: those further back are smaller and higher. The chosen one turns to
+ // the front.
  const N=ROSTER.length,STEP=Math.PI*2/N;
  const wrap=i=>((i%N)+N)%N;
  function choose(i){selected=wrap(i);let d=i-current;d-=Math.round(d/N)*N;target=current+d;chosen=ROSTER[selected];previews?.cheer(selected);paintCards();kick();}
  function step(d){choose(Math.round(target)+d);}
- function paintCards(){cards.forEach((c,i)=>{const on=i===selected;c.classList.toggle('is-selected',on);c.setAttribute('aria-checked',String(on));c.tabIndex=on?0:-1;});}
- function cardSize(){const r=ring.getBoundingClientRect(),hgt=Math.max(150,Math.min(r.height*.84,r.width*.62));return {w:Math.round(hgt*.44),h:Math.round(hgt)};}
- function layout(){
-  if(!ring)return;const r=ring.getBoundingClientRect(),size=cardSize(),radius=Math.min(r.width*.36,size.w*3.3);
-  cards.forEach((c,i)=>{
-   const a=(i-current)*STEP,z=Math.cos(a),depth=(z+1)/2,s=.5+.5*depth,x=Math.sin(a)*radius*(.62+.38*depth),y=-(1-depth)*size.h*.17;
-   c.style.width=size.w+'px';c.style.height=size.h+'px';c.style.zIndex=String(Math.round(depth*100)+(i===selected?1:0));
-   c.style.transform=`translate(-50%,-56%) translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s.toFixed(3)})`;
-   c.style.filter=depth>.98?'none':`brightness(${(.8+.2*depth).toFixed(3)}) saturate(${(.75+.25*depth).toFixed(3)})`;
-   c.dataset.depth=depth.toFixed(3);c.dataset.yaw=(-Math.sin(a)*.55).toFixed(3);
-  });
-  paintCards();
- }
+ function paintCards(){cards.forEach((c,i)=>{const on=i===selected;c.setAttribute('aria-checked',String(on));c.tabIndex=on?0:-1;});ui.dots?.querySelectorAll('.h-dot').forEach((d,i)=>d.classList.toggle('on',i===selected));ring?.classList.toggle('is-ready',!!previews?.has(selected));}
  let dragged=false;
  function dragInput(){
   let startX=0,startCurrent=0,down=false;
-  ring.addEventListener('pointerdown',e=>{if(e.target.closest('.h-arrow'))return;down=true;dragged=false;startX=e.clientX;startCurrent=current;});
-  addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-startX;if(Math.abs(dx)>8)dragged=true;if(!dragged)return;current=target=startCurrent-dx/(cardSize().w*1.6);layout();kick();});
-  addEventListener('pointerup',()=>{if(!down)return;down=false;if(dragged){choose(Math.round(current));setTimeout(()=>dragged=false,0);}});
+  ui.canvas.addEventListener('pointerdown',e=>{down=true;dragged=false;startX=e.clientX;startCurrent=current;});
+  addEventListener('pointermove',e=>{
+   if(down){const dx=e.clientX-startX;if(Math.abs(dx)>8)dragged=true;if(dragged){current=target=startCurrent-dx/(ring.clientWidth*.22);kick();}return;}
+   if(e.target===ui.canvas)ui.canvas.style.cursor=previews?.hit(e.offsetX,e.offsetY)>=0?'pointer':'grab';
+  });
+  addEventListener('pointerup',e=>{if(!down)return;down=false;if(dragged){choose(Math.round(current));return;}if(e.target===ui.canvas){const i=previews?.hit(e.offsetX,e.offsetY)??-1;if(i>=0)choose(i);}});
   ring.addEventListener('wheel',e=>{if(Math.abs(e.deltaX)>Math.abs(e.deltaY)&&Math.abs(e.deltaX)>12){e.preventDefault();step(Math.sign(e.deltaX));}},{passive:false});
  }
  function kick(){if(!raf&&selectEl&&!selectEl.hidden){last=performance.now();raf=requestAnimationFrame(frame);}}
@@ -208,16 +201,16 @@ window.Home179=(()=>{
  function frame(t){
   raf=0;if(!selectEl||selectEl.hidden||leaving)return;
   const dt=Math.min(.05,(t-last)/1000);last=t;
-  if(Math.abs(target-current)>.0005){current+=(target-current)*Math.min(1,dt*7.5);layout();}else if(current!==target){current=target;layout();}
-  previews?.draw(t/1000,cards);
+  if(Math.abs(target-current)>.0005)current+=(target-current)*Math.min(1,dt*7.5);else current=target;
+  previews?.draw(t/1000,current,selected);
   raf=requestAnimationFrame(frame);
  }
  async function startPreviews(){
   kick();if(previews)return;
-  try{previews=await Previews(cardSize());}catch(e){console.warn('Character previews:',e.message);previews=null;}
-  if(!previews)cards.forEach(c=>c.classList.add('is-ready'));
+  try{previews=await Stage(ui.canvas);}catch(e){console.warn('Character previews:',e.message);previews=null;}
+  if(!previews){ring.classList.add('is-ready');return;}
   // The chosen character first, then outward from it.
-  else{const order=[0,1,-1,2,-2,3,-3,4].map(d=>wrap(selected+d));let next=0;const worker=async()=>{while(next<order.length){const i=order[next++];try{await previews.load(i,ROSTER[i]);}catch(e){console.warn('Character preview',ROSTER[i],e.message);}cards[i].classList.add('is-ready');}};worker();worker();}
+  const order=[0,1,-1,2,-2,3,-3,4].map(d=>wrap(selected+d));let next=0;const worker=async()=>{while(next<order.length){const i=order[next++];try{await previews.load(i,ROSTER[i]);}catch(e){console.warn('Character preview',ROSTER[i],e.message);}paintCards();}};worker();worker();
  }
 
  // ---------- let's go ----------
@@ -255,10 +248,11 @@ window.Home179=(()=>{
   root.classList.add('is-leaving');setTimeout(()=>{previews?.dispose();previews=null;root.remove();},520);
  }
 
- // ---------- live 3D previews ----------
- // One hidden WebGL canvas draws each character in turn; each card copies its picture.
- async function Previews(size){
-  const glc=document.createElement('canvas'),gl=glc.getContext('webgl2',{alpha:true,premultipliedAlpha:true,antialias:true});
+ // ---------- live 3D stage ----------
+ // One WebGL canvas: eight round platforms around a circle, a kid on each,
+ // everyone facing the viewer; the chosen kid's platform glows blue.
+ async function Stage(canvas){
+  const gl=canvas.getContext('webgl2',{alpha:true,premultipliedAlpha:true,antialias:true});
   if(!gl)return null;
   const ratio=Math.min(1.5,devicePixelRatio||1);let W=1,H=1;
   const compile=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;};
@@ -278,10 +272,28 @@ void main(){vec3 base=texture(uTex,vUV).rgb;vec3 n=normalize(vN);if(!gl_FrontFac
  vec3 s=pow(max(c,vec3(0.)),vec3(1./2.2));float l=dot(s,vec3(.2126,.7152,.0722));o=vec4(clamp(mix(vec3(l),s,1.16)*1.03,0.,1.),1.);}`));
   gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(prog));
   const U={};for(const n of ['uVP','uModel','uJoints','uTex','uEye'])U[n]=gl.getUniformLocation(prog,n);
+  // Platforms: a white top with a soft shadow under the feet, a pastel side band.
+  const flat=gl.createProgram();
+  gl.attachShader(flat,compile(gl.VERTEX_SHADER,`#version 300 es
+layout(location=0) in vec3 aPos;layout(location=1) in vec3 aNor;uniform mat4 uVP,uModel;out vec3 vL;out vec3 vN;
+void main(){vL=aPos;vN=aNor;gl_Position=uVP*uModel*vec4(aPos,1.);}`));
+  gl.attachShader(flat,compile(gl.FRAGMENT_SHADER,`#version 300 es
+precision highp float;in vec3 vL;in vec3 vN;uniform vec3 uSide;uniform float uGlow;uniform float uFloor;out vec4 o;
+void main(){float r=length(vL.xz);
+ if(uFloor>.5){float a=(1.-smoothstep(.0,.035,abs(r-1.)))*.30+(1.-smoothstep(0.,1.,r))*.10;o=vec4(vec3(.62,.72,.86)*a,a);return;}
+ if(vN.y>.5){vec3 c=vec3(.985,.99,1.)*(1.-.20*exp(-r*r/.06))-vec3(.04)*smoothstep(.85,1.,r);c=mix(c,vec3(.08,.47,.9),uGlow*smoothstep(.80,.97,r));o=vec4(c,1.);return;}
+ float y=clamp(vL.y/.07,0.,1.),lit=.78+.22*max(dot(normalize(vN),normalize(vec3(-.3,.4,.85))),0.);vec3 side=mix(uSide*.86,uSide,y)*lit;o=vec4(mix(side,vec3(.08,.47,.9)*(.9+.2*y),uGlow*.85),1.);}`));
+  gl.linkProgram(flat);if(!gl.getProgramParameter(flat,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(flat));
+  const F={};for(const n of ['uVP','uModel','uSide','uGlow','uFloor'])F[n]=gl.getUniformLocation(flat,n);
   const models=[],resources=[];
-  function resize(s){W=Math.max(1,Math.round(s.w*ratio));H=Math.max(1,Math.round(s.h*.88*ratio));if(glc.width<W)glc.width=W;if(glc.height<H)glc.height=H;
-   for(const c of cards){const cv=c.querySelector('canvas');if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}}}
-  resize(size);
+  function mesh(pos,nor,idx){const vao=gl.createVertexArray();gl.bindVertexArray(vao);resources.push(['vao',vao]);
+   for(const [loc,data] of [[0,pos],[1,nor]]){const b=gl.createBuffer();resources.push(['buffer',b]);gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STATIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);}
+   const ib=gl.createBuffer();resources.push(['buffer',ib]);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);gl.bindVertexArray(null);return {vao,count:idx.length};}
+  // A disc of radius 1, .07 tall (scaled per platform), and a flat floor disc for the guide circle.
+  const SEG=56,disc=(()=>{const p=[0,.07,0],n=[0,1,0],ix=[];for(let k=0;k<=SEG;k++){const a=k/SEG*Math.PI*2,x=Math.sin(a),z=Math.cos(a);p.push(x,.07,z);n.push(0,1,0);}for(let k=1;k<=SEG;k++)ix.push(0,k,k+1);
+   const base=p.length/3;for(let k=0;k<=SEG;k++){const a=k/SEG*Math.PI*2,x=Math.sin(a),z=Math.cos(a);p.push(x,.07,z,x,0,z);n.push(x,0,z,x,0,z);}for(let k=0;k<SEG;k++){const a=base+k*2;ix.push(a,a+1,a+2,a+1,a+3,a+2);}return mesh(p,n,ix);})();
+  const floorDisc=(()=>{const p=[0,0,0],n=[0,1,0],ix=[];for(let k=0;k<=SEG;k++){const a=k/SEG*Math.PI*2;p.push(Math.sin(a)*1.25,0,Math.cos(a)*1.25);n.push(0,1,0);}for(let k=1;k<=SEG;k++)ix.push(0,k,k+1);return mesh(p,n,ix);})();
+  const SIDES=[[.75,.87,.97],[.78,.92,.85],[.97,.86,.78]];
   async function load(i,id){
    const r=await fetch('./players177/'+id+'.glb?v='+V);if(!r.ok)throw Error('download failed ('+r.status+')');const ab=await r.arrayBuffer();
    const dv=new DataView(ab),jl=dv.getUint32(12,true),j=JSON.parse(new TextDecoder().decode(new Uint8Array(ab,20,jl))),bo=20+jl,bin=new DataView(ab,bo+8,dv.getUint32(bo,true));
@@ -323,29 +335,41 @@ void main(){vec3 base=texture(uTex,vUV).rgb;vec3 n=normalize(vN);if(!gl_FrontFac
   const perspective=(fovy,aspect,near,far)=>{const f=1/Math.tan(fovy/2),nf=1/(near-far);return [f/aspect,0,0,0,0,f,0,0,0,0,(far+near)*nf,-1,0,0,2*far*near*nf,0];};
   const look=(e,c)=>{const z=[e[0]-c[0],e[1]-c[1],e[2]-c[2]],zl=Math.hypot(...z);z.forEach((v,k)=>z[k]=v/zl);const x=[z[2],0,-z[0]],xl=Math.hypot(...x);x.forEach((v,k)=>x[k]=v/xl);const y=[z[1]*x[2]-z[2]*x[1],z[2]*x[0]-z[0]*x[2],z[0]*x[1]-z[1]*x[0]];
    return [x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]),-(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]),-(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]),1];};
-  const eye=[0,.62,3.45],vp=()=>mm(perspective(20*Math.PI/180,W/H,.1,20),look(eye,[0,.56,0]));
-  let frameNo=0;
-  function draw(t,list){
-   if(!pageLoaded||!models.some(Boolean))return;   // the game's matrix helpers load with the page
-   frameNo++;gl.useProgram(prog);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.enable(gl.SCISSOR_TEST);gl.viewport(0,0,W,H);gl.scissor(0,0,W,H);
-   gl.uniformMatrix4fv(U.uVP,false,new Float32Array(vp()));gl.uniform3fv(U.uEye,eye);gl.uniform1i(U.uTex,0);gl.uniform1i(U.uJoints,1);
-   list.forEach((card,i)=>{
-    const m=models[i];if(!m)return;const depth=+card.dataset.depth;
-    // Cards near the back are small and partly hidden: they update less often.
-    if(depth<.6&&frameNo%3!==i%3&&m.lastDrawn>=0)return;m.lastDrawn=frameNo;
-    animate(m,t);
-    const s=1/(m.hi[1]-m.lo[1]),yaw=+card.dataset.yaw,c=Math.cos(yaw),sn=Math.sin(yaw),cx=(m.lo[0]+m.hi[0])/2,cz=(m.lo[2]+m.hi[2])/2;
-    const model=[c*s,0,-sn*s,0,0,s,0,0,sn*s,0,c*s,0,-(c*cx+sn*cz)*s,-m.lo[1]*s,-(-sn*cx+c*cz)*s,1];
-    gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  // Camera solved so the front platform and the back row's heads both fit, front kid as large as possible.
+  const R=1.9,PR=.34,PH=.07*.75,eye=[0,1.4,R+3.0],aim=[0,.35,1.0];
+  const yawAt=(x,z)=>Math.atan2(eye[0]-x,eye[2]-z);
+  let VP=null,spots=[];   // set on the first frame (the game's helpers load with the page)
+  function resize(){const w=Math.max(1,Math.round(canvas.clientWidth*ratio)),h=Math.max(1,Math.round(canvas.clientHeight*ratio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}W=w;H=h;}
+  const project=(x,y,z)=>{const m=VP,cw=m[3]*x+m[7]*y+m[11]*z+m[15];return [((m[0]*x+m[4]*y+m[8]*z+m[12])/cw*.5+.5)*canvas.clientWidth,(.5-(m[1]*x+m[5]*y+m[9]*z+m[13])/cw*.5)*canvas.clientHeight,cw];};
+  function draw(t,current,selected){
+   if(!pageLoaded)return;   // the game's matrix helpers load with the page
+   resize();gl.viewport(0,0,W,H);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);
+   // Wider screens step back less; narrow ones more, so the whole circle fits.
+   const aspect=W/H,back=Math.max(1,3.6/aspect),e=[eye[0],eye[1]*back,(eye[2]-aim[2])*back+aim[2]];
+   VP=mm(perspective(27*Math.PI/180,aspect,.1,40),look(e,aim));
+   spots=ROSTER.map((id,i)=>{const a=(i-current)*STEP;return {i,x:Math.sin(a)*R,z:Math.cos(a)*R};});
+   // The guide circle on the floor, then the platforms.
+   gl.useProgram(flat);gl.uniformMatrix4fv(F.uVP,false,new Float32Array(VP));
+   gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.uniform1f(F.uFloor,1);gl.uniform1f(F.uGlow,0);
+   gl.uniformMatrix4fv(F.uModel,false,new Float32Array([R,0,0,0,0,1,0,0,0,0,R,0,0,.001,0,1]));gl.bindVertexArray(floorDisc.vao);gl.drawElements(gl.TRIANGLES,floorDisc.count,gl.UNSIGNED_SHORT,0);
+   gl.disable(gl.BLEND);gl.depthMask(true);gl.uniform1f(F.uFloor,0);gl.disable(gl.CULL_FACE);
+   for(const s of spots){gl.uniform3fv(F.uSide,SIDES[s.i%3]);gl.uniform1f(F.uGlow,s.i===selected?1:0);
+    gl.uniformMatrix4fv(F.uModel,false,new Float32Array([PR,0,0,0,0,.75,0,0,0,0,PR,0,s.x,0,s.z,1]));gl.bindVertexArray(disc.vao);gl.drawElements(gl.TRIANGLES,disc.count,gl.UNSIGNED_SHORT,0);}
+   // The kids, each turned toward the viewer.
+   gl.useProgram(prog);gl.uniformMatrix4fv(U.uVP,false,new Float32Array(VP));gl.uniform3fv(U.uEye,e);gl.uniform1i(U.uTex,0);gl.uniform1i(U.uJoints,1);gl.enable(gl.CULL_FACE);
+   for(const s of spots){const m=models[s.i];if(!m)continue;animate(m,t);
+    const k=1/(m.hi[1]-m.lo[1]),yaw=yawAt(s.x,s.z),c=Math.cos(yaw),sn=Math.sin(yaw),cx=(m.lo[0]+m.hi[0])/2,cz=(m.lo[2]+m.hi[2])/2;
+    const model=[c*k,0,-sn*k,0,0,k,0,0,sn*k,0,c*k,0,s.x-(c*cx+sn*cz)*k,PH-m.lo[1]*k,s.z-(-sn*cx+c*cz)*k,1];
     gl.uniformMatrix4fv(U.uModel,false,new Float32Array(model));
     gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,m.jt);gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,4,m.joints.length,gl.RGBA,gl.FLOAT,m.data);
-    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,m.tex);
-    gl.bindVertexArray(m.vao);gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_INT,0);gl.bindVertexArray(null);
-    const cv=card.querySelector('canvas'),ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx.drawImage(glc,0,glc.height-H,W,H,0,0,W,H);
-   });
+    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,m.tex);gl.bindVertexArray(m.vao);gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_INT,0);}
+   gl.bindVertexArray(null);gl.disable(gl.CULL_FACE);
   }
-  function dispose(){for(const [kind,r] of resources)kind==='vao'?gl.deleteVertexArray(r):kind==='buffer'?gl.deleteBuffer(r):gl.deleteTexture(r);gl.deleteProgram(prog);gl.getExtension('WEBGL_lose_context')?.loseContext();}
-  return {load,draw,cheer,resize,dispose,get loaded(){return models.filter(Boolean).length;}};
+  // Which kid is under a point of the canvas (CSS pixels): the nearest one whose body box holds it.
+  function hit(px,py){let best=-1,bestDepth=Infinity;if(!VP)return best;for(const s of spots){const [fx,fy,depth]=project(s.x,0,s.z),[,hy]=project(s.x,1.05,s.z),[ex]=project(s.x+PR,0,s.z),half=Math.abs(ex-fx);
+   if(px>fx-half&&px<fx+half&&py>hy&&py<fy+half*.4&&depth<bestDepth){best=s.i;bestDepth=depth;}}return best;}
+  function dispose(){for(const [kind,r] of resources)kind==='vao'?gl.deleteVertexArray(r):kind==='buffer'?gl.deleteBuffer(r):gl.deleteTexture(r);gl.deleteProgram(prog);gl.deleteProgram(flat);gl.getExtension('WEBGL_lose_context')?.loseContext();}
+  return {load,draw,cheer,hit,dispose,has:i=>!!models[i],get loaded(){return models.filter(Boolean).length;}};
  }
 
  return {

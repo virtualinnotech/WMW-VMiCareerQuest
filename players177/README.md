@@ -15,8 +15,17 @@ in the order of the character select art:
 | kid07 | varsity jacket, green hoodie |
 | kid08 | olive jacket, khaki cargo pants |
 
-Kids are drawn at 78% of the adults' height (KID_RATIO178 in
+Every kid is reshaped to kid04's proportions (smaller head and hands,
+arms, legs and torso matched, torso and limbs slimmed); kid04 itself is
+unchanged. Kids are drawn at 78% of the adults' height (KID_RATIO178 in
 venue-frame.html); ride poses fit a kid rider (visitors100/scooter.js).
+
+The venue crowd is made of the kids too (with the 50 purple volunteers and
+20 adult chaperones). It uses `kidNN-crowd.glb`, a lighter copy of each kid
+(about 9,000 triangles, a 1024 texture, idle and walk only), and
+`kidNN-roles.bin.gz`, a map of which texels are the top, pants, shoes, hair
+and skin, so every kid in the crowd gets their own colours and skin tone
+(StudentLooks32.kidOutfit in venue-frame.html).
 
 Clips, by the names the game picks: `idle`, `walk` (W), `walk_backward`
 (Walking played in reverse, S), `run` (Slow Run, Shift + W; kids without one
@@ -30,7 +39,13 @@ blender -b --factory-startup --python tools/build_kids.py -- <pack folder> .
 python3 ../fall173/tools/retarget.py <folder with fall.json, getting_up.json, gltf_math.py> kid01.glb ../fall173/kid01-fall.json
 ```
 
-(the second line once per kid). Each kid's mesh and skeleton come from its
+(the second line once per kid), then the crowd colour maps:
+
+```
+blender -b --factory-startup --python tools/kid_roles.py -- .
+```
+
+build_kids.py also writes the `-crowd` copies. Each kid's mesh and skeleton come from its
 T-Pose FBX, the texture from the pack's GLB, and the clips from its own FBX
 animations, all through the same importer, so the clips match the bind pose.
 Where a relaxed idle or a stride tilts the shoes below the T-pose soles, the

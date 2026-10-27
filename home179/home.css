@@ -79,21 +79,15 @@
 #home179 .h-who .w-first{flex:1 1 200px}#home179 .h-who .w-initial{flex:0 0 120px}#home179 .h-who .w-school{flex:2 1 260px}
 #home179 .h-who input{padding:clamp(7px,1.2vh,11px) 14px;box-shadow:0 3px 10px #0b1d4512}
 #home179 .h-who-note{position:relative;z-index:3;flex:none;margin:.8vh 0 0;font-size:13px;font-weight:600;color:#5d6d88;text-align:center;max-width:min(92vw,820px)}
-#home179 .h-ring{position:relative;z-index:2;flex:1 1 auto;width:100%;min-height:200px;touch-action:pan-y;outline:none}
-#home179 .h-card3d{position:absolute;left:50%;top:50%;padding:0;border:3px solid #fff0;border-radius:18px;cursor:pointer;
- background:linear-gradient(180deg,#eef5fd 0%,#dfeaf7 100%);box-shadow:0 10px 26px #0b1d4520;transition:border-color .2s,box-shadow .2s;transform-origin:50% 50%;will-change:transform}
-#home179 .h-card3d canvas{position:absolute;left:0;top:0;width:100%;height:88%;border-radius:15px 15px 0 0}
-#home179 .h-card3d .h-num{position:absolute;left:0;right:0;bottom:4.5%;font-size:clamp(15px,2.7vh,26px);font-weight:900;color:var(--navy)}
-#home179 .h-card3d .h-check{position:absolute;right:-14px;top:-14px;width:clamp(30px,5.2vh,46px);height:clamp(30px,5.2vh,46px);border-radius:50%;background:var(--red);border:3px solid #fff;
- display:none;place-items:center;box-shadow:0 4px 12px #dc193466}
-#home179 .h-card3d .h-check svg{width:55%;height:55%}
-#home179 .h-card3d .h-tag{position:absolute;left:-3px;right:-3px;bottom:-12%;height:13%;display:none;align-items:center;justify-content:center;background:var(--bright);color:#fff;
- font-size:clamp(11px,2vh,18px);font-weight:900;letter-spacing:.1em;border-radius:0 0 16px 16px}
-#home179 .h-card3d.is-selected{border-color:var(--bright);box-shadow:0 18px 40px #1479e64d}
-#home179 .h-card3d.is-selected .h-check{display:grid}
-#home179 .h-card3d.is-selected .h-tag{display:flex}
-#home179 .h-card3d .h-wait{position:absolute;left:50%;top:42%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:4px solid #c9d8ea;border-top-color:var(--bright);animation:h179spin .9s linear infinite}
-#home179 .h-card3d.is-ready .h-wait{display:none}
+#home179 .h-ring{position:relative;z-index:2;flex:1 1 auto;width:100%;min-height:220px;outline:none}
+#home179 .h-stage{position:absolute;inset:0 0 22px;width:100%;height:calc(100% - 22px);display:block;touch-action:pan-y;cursor:grab}
+#home179 .h-picks{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#home179 .h-picks:focus-within+.h-dots{outline:3px solid #7cc4ff;outline-offset:6px;border-radius:999px}
+#home179 .h-dots{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);display:flex;gap:10px;z-index:3}
+#home179 .h-dot{width:10px;height:10px;border-radius:50%;border:0;padding:0;background:#c3d2e6;cursor:pointer;transition:transform .15s,background .15s}
+#home179 .h-dot.on{background:var(--bright);transform:scale(1.3)}
+#home179 .h-ring>.h-wait{position:absolute;left:50%;top:45%;width:38px;height:38px;margin:-19px 0 0 -19px;border-radius:50%;border:4px solid #c9d8ea;border-top-color:var(--bright);animation:h179spin .9s linear infinite}
+#home179 .h-ring.is-ready>.h-wait{display:none}
 @keyframes h179spin{to{transform:rotate(360deg)}}
 #home179 .h-arrow{position:absolute;top:50%;z-index:500;width:clamp(40px,6.4vh,58px);height:clamp(40px,6.4vh,58px);margin-top:calc(clamp(40px,6.4vh,58px) / -2);border-radius:50%;border:0;background:#fff;color:var(--navy);
  box-shadow:0 6px 18px #0b1d4530;display:grid;place-items:center;cursor:pointer;transition:background .15s,color .15s}
