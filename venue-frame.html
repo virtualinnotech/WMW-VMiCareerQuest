@@ -2097,7 +2097,7 @@ function decodeCharacterPrimitive(j,bin,pr,D){
 function characterClip(j,bin,a){const samp=a.samplers.map(s=>({times:accessor(j,bin,s.input),values:accessor(j,bin,s.output),interpolation:s.interpolation||'LINEAR'}));return{name:a.name,duration:Math.max(...samp.map(s=>s.times[s.times.length-1])),channels:a.channels.map(c=>({node:c.target.node,path:c.target.path,...samp[c.sampler]}))};}
 async function loadCharacterModelRaw18(id,D){
  if(gl.isContextLost())throw Error("The graphics context has reset. Restart the empty venue.");MCQDiagnostics18.stage="loading model "+id;
- let ab;if(isPlayerModel177(id)){const response=await fetch('./players177/'+id+'.glb?v=177');if(!response.ok)throw Error('Missing players177/'+id+'.glb');ab=await response.arrayBuffer();}else if(isNewStudent(id)){const response=await fetch('./students17/'+id+'.glb?motion=19',{cache:'no-cache'});if(!response.ok)throw Error('Missing students17/'+id+'.glb. Copy the students17 folder beside index.html.');ab=await response.arrayBuffer();}else{const data=$('character-'+id).textContent.trim(),gz=decodeBase64Bytes(data);ab=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}const{json:j,bin}=parseGLB(ab);if(isNewStudent(id)&&!j.extras?.motionRevision19)throw Error('Old animation file for '+id+'. Replace the students17 folder with the DEV19 models and refresh.');
+ let ab;if(isPlayerModel177(id)){const response=await fetch('./players177/'+id+'.glb?v=178');if(!response.ok)throw Error('Missing players177/'+id+'.glb');ab=await response.arrayBuffer();}else if(isNewStudent(id)){const response=await fetch('./students17/'+id+'.glb?motion=19',{cache:'no-cache'});if(!response.ok)throw Error('Missing students17/'+id+'.glb. Copy the students17 folder beside index.html.');ab=await response.arrayBuffer();}else{const data=$('character-'+id).textContent.trim(),gz=decodeBase64Bytes(data);ab=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}const{json:j,bin}=parseGLB(ab);if(isNewStudent(id)&&!j.extras?.motionRevision19)throw Error('Old animation file for '+id+'. Replace the students17 folder with the DEV19 models and refresh.');
  const parents=new Map(),order=[];j.nodes.forEach((n,i)=>(n.children||[]).forEach(k=>parents.set(k,i)));function visit(i){order.push(i);for(const c of j.nodes[i].children||[])visit(c);}for(const r of j.scenes[j.scene||0].nodes)visit(r);
  const clips=(j.animations||[]).map(a=>characterClip(j,bin,a));const pick=word=>clips.find(c=>new RegExp(word,'i').test(c.name));
  const model={id,j,order,parents,clips,idle:pick('idle'),walk:pick('walk'),back:pick('backward'),wave:pick('wave'),run:isPlayerModel177(id)?pick('run'):null,parts:[],lo:[Infinity,Infinity,Infinity],hi:[-Infinity,-Infinity,-Infinity],skins:j.skins.map(s=>({...s,ibm:accessor(j,bin,s.inverseBindMatrices)}))};
@@ -4547,7 +4547,7 @@ function revealStudentGamification(){
 <script src="./city106/street128/bike-data.js?v=20261016-street128"></script>
 <script src="./city106/street128/docks.js?v=20261016-materials129"></script>
 <script src="./visitors100/scooter.js?v=20261026-boy177"></script>
-<script src="./fall173/fall.js?v=20261026-boy177"></script>
+<script src="./fall173/fall.js?v=20261027-ground178"></script>
 <link rel="stylesheet" href="./boothmedia162/media.css?v=20261022-media162">
 <script src="./boothmedia162/media.js?v=20261022-media162"></script>
 <script src="./visitors100/wayfinder103.js?v=20261022-pacing164"></script>

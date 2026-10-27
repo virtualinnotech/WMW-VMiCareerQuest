@@ -22,8 +22,14 @@ To rebuild from the supplied files (the GLB folder from
 
 ```
 blender -b --factory-startup --python tools/assemble_boy.py -- <glb folder> <Texture.png> player_boy.glb ./fall173/player_boy-fall.json
-python3 ../fall173/tools/retarget.py <folder with fall.json, getting_up.json, gltf_math.py> "<glb folder>/T-Pose.glb" ../fall173/player_boy-fall.json
+python3 ../fall173/tools/retarget.py <folder with fall.json, getting_up.json, gltf_math.py> player_boy.glb ../fall173/player_boy-fall.json
 ```
+
+The supplied T-pose is centred on his hips, but the clips stand him on the
+floor, so the build raises the bind pose (by about 0.93) until his soles in
+idle, walk and run sit on the bind soles; the game stands the bind soles on
+the floor. Retarget the falls against the built `player_boy.glb`, not the
+supplied T-Pose, so they use the same height.
 
 The texture is stored as a 2048 JPEG; the game uses it at 2048 (1024 on
 low-memory Chromebooks).

@@ -33,4 +33,5 @@ script prints head, hip and feet heights as a check.
 `player_boy-fall.json` is the same pair of clips retargeted to the player
 boy's skeleton (players177). `retarget.py` now takes the target GLB and
 output path, and measures the hip drop from the target's feet, so rigs that
-are centred on the hips (like his) land on the floor.
+are centred on the hips land on the floor. Retarget against the built
+`players177/player_boy.glb` (see players177/README.md).
