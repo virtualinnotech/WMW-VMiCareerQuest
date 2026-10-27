@@ -22,14 +22,11 @@ unchanged. Kids are drawn at 78% of the adults' height (KID_RATIO178 in
 venue-frame.html); ride poses fit a kid rider (visitors100/scooter.js).
 
 The venue crowd is made of the kids too (with the 50 purple volunteers and
-20 adult chaperones). It uses `kidNN-crowd.glb`, a lighter copy of each kid
-(a 1024 texture, idle and walk only) with three meshes: 13,000 triangles
-with the face kept detailed for close by, and 6,000 and 2,600 (`@lod1`,
-`@lod2`) for the middle and far distances; the game uses these instead of
-simplifying the mesh itself. `kidNN-roles.bin.gz` maps which texels are the
-top, pants and shoes, so every kid in the crowd wears a different colour
-combination (StudentLooks32.kidOutfit in venue-frame.html); skin, hair and
-faces keep their own painting.
+20 adult chaperones), looking exactly like their characters. It uses
+`kidNN-crowd.glb`: a 1024 texture, idle and walk only, and three meshes: the
+full original mesh for close by, and 15,000 and 5,000 triangles (`@lod1`,
+`@lod2`, face and hands kept detailed in the first) for the middle and far
+distances; the game uses these instead of simplifying the mesh itself.
 
 Walking speed comes from the feet: the game measures how fast each kid's
 planted foot moves in walk, run and backward walk (gait179) and moves the
@@ -39,7 +36,8 @@ slide. Crowd kids walk at their own stride with the adults' step pace.
 Clips, by the names the game picks: `idle`, `walk` (W), `walk_backward`
 (Walking played in reverse, S), `run` (Slow Run, Shift + W; kids 03, 05 and
 08 have none in the pack, so they borrow kid04's or kid01's, retargeted bone
-by bone) and `cheer` (a wave or a jump, played when picked in the
+by bone; kid02's idle is kid01's Standing Idle, since her own leaned back and
+breathed hard) and `cheer` (a wave or a jump, played when picked in the
 carousel). Falls use `fall173/kidNN-fall.json`.
 
 To rebuild from the pack (unzip its GLB.zip and ANIMATIONS.zip into one folder):
@@ -49,13 +47,7 @@ blender -b --factory-startup --python tools/build_kids.py -- <pack folder> .
 python3 ../fall173/tools/retarget.py <folder with fall.json, getting_up.json, gltf_math.py> kid01.glb ../fall173/kid01-fall.json
 ```
 
-(the second line once per kid), then the crowd colour maps:
-
-```
-blender -b --factory-startup --python tools/kid_roles.py -- .
-```
-
-build_kids.py also writes the `-crowd` copies. Each kid's mesh and skeleton come from its
+(the second line once per kid). build_kids.py also writes the `-crowd` copies. Each kid's mesh and skeleton come from its
 T-Pose FBX, the texture from the pack's GLB, and the clips from its own FBX
 animations, all through the same importer, so the clips match the bind pose.
 Where a relaxed idle or a stride tilts the shoes below the T-pose soles, the

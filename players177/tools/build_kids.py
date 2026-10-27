@@ -6,7 +6,9 @@
 # what the game picks: idle, walk, walk_backward (Walking played in reverse),
 # run (Slow Run; kids 03, 05 and 08 have none in the pack, so they borrow
 # kid04's or kid01's, retargeted bone by bone) and cheer (a wave or a jump,
-# for the character select carousel). Scale keys and every translation key but
+# for the character select carousel). kid02 borrows kid01's Standing Idle (her
+# own leaned back and breathed hard); kid06's right hand is twisted 17 degrees
+# so his two hands hang alike. Scale keys and every translation key but
 # the hips are dropped, and the mesh is Draco-compressed (the game already
 # decodes Draco for its other characters). The game stands the T-pose soles
 # on the floor; where a character's clips tilt the feet below that (shoe
@@ -19,10 +21,11 @@
 # baked into that shape and it becomes the new rest pose, so the clips (which
 # are rotations) fit it unchanged. Hips motion in the clips scales with the
 # new hip height.
-# Each kid also gets a lighter copy for the venue crowd (kidNN-crowd.glb): a
-# 1024 texture, the same skeleton, idle and walk, and three meshes: 13,000
-# triangles with the face kept detailed (close), and 6,000 and 2,600 for the
-# game's middle and far distances (mesh names end @lod1 and @lod2).
+# Each kid also gets a copy for the venue crowd (kidNN-crowd.glb): a 1024
+# texture, the same skeleton, idle and walk, and three meshes: the full
+# original mesh for close by, and 15,000 and 5,000 triangles (face and hands
+# kept detailed) for the game's middle and far distances (mesh names end
+# @lod1 and @lod2).
 # Usage: blender -b --factory-startup --python build_kids.py -- <pack folder with GLB/ and ANIMATIONS/> <out folder> [kid01 ...]
 import bpy, sys, os, json, struct
 from mathutils import Matrix, Quaternion
@@ -32,7 +35,7 @@ args = sys.argv[sys.argv.index('--') + 1:]
 pack, out, only = args[0], args[1], set(args[2:])
 ROSTER = [  # id, pack GLB (texture), animation folder, clips
     ('kid01', 'GLB GIRL 1.glb', 'animations GIRL 1', {'idle': 'Standing Idle', 'walk': 'Walking', 'run': 'Slow Run', 'cheer': 'Jump'}),
-    ('kid02', 'GLB GIRL 2.glb', 'animations GIRL 2', {'idle': 'Idle', 'walk': 'Walking', 'run': 'Slow Run', 'cheer': 'Jumping'}),
+    ('kid02', 'GLB GIRL 2.glb', 'animations GIRL 2', {'walk': 'Walking', 'run': 'Slow Run', 'cheer': 'Jumping'}),
     ('kid03', 'BOY 1.glb', 'boy 1', {'idle': 'Idle', 'walk': 'Walking', 'cheer': 'Waving'}),
     ('kid04', 'boy 2.glb', 'boy 2', {'idle': 'Idle', 'walk': 'Walking', 'run': 'Slow Run', 'cheer': 'Jumping Up'}),
     ('kid05', 'GLB STYLISH GIRL  3.glb', 'ANIMATIONS GIRL 3', {'idle': 'Standing Idle', 'walk': 'Walking', 'cheer': 'Waving'}),
@@ -40,8 +43,12 @@ ROSTER = [  # id, pack GLB (texture), animation folder, clips
     ('kid07', 'boy 4.glb', 'boy 4', {'idle': 'Idle', 'walk': 'Walking', 'run': 'Slow Run', 'cheer': 'Jumping Up'}),
     ('kid08', 'GLB GIRL CHARACETR 4.glb', 'ANIAMTIONS GIRL 4', {'idle': 'Idle', 'walk': 'Walking', 'cheer': 'Waving'}),
 ]
-# A run borrowed from a kid of similar build, for those without one.
-BORROW_RUN = {'kid03': ('boy 2', 'Slow Run'), 'kid05': ('animations GIRL 1', 'Slow Run'), 'kid08': ('animations GIRL 1', 'Slow Run')}
+# Clips borrowed from a kid of similar build: runs for those without one, and
+# a calmer idle for kid02.
+BORROW = {'kid03': {'run': ('boy 2', 'Slow Run')}, 'kid05': {'run': ('animations GIRL 1', 'Slow Run')},
+          'kid08': {'run': ('animations GIRL 1', 'Slow Run')}, 'kid02': {'idle': ('animations GIRL 1', 'Standing Idle')}}
+# A twist (degrees, about the bone) added to a hand in every clip.
+HAND_TWIST = {'kid06': ('RightHand', 17)}
 
 def glb_basecolor(path, folder):
     raw = open(path, 'rb').read(); l = struct.unpack('<I', raw[12:16])[0]; j = json.loads(raw[20:20 + l]); o = 20 + l
@@ -102,7 +109,7 @@ def lowest_at(arm, meshes, frame):
 KID04 = {'torso': .2758, 'arm': .2286, 'leg': .3974, 'head': .1789, 'hand': .0898, 'foot': .0748, 'width': .2003}
 HAND_SHARE = .6   # how far toward kid04's hand size (1 = all the way)
 OVERRIDES = {'kid02': {'arm': .80}}   # set by eye
-CROWD_LODS = [(13000, 1.0), (6000, 0), (2600, 0)]   # triangles, face protection
+CROWD_LODS = [(None, 0), (15000, 1.0), (5000, 0)]   # triangles (None: the full mesh), face and hand protection
 LIMITS = {'torso': (.85, 1.25), 'arm': (.75, 1.15), 'leg': (.85, 1.2), 'head': (.45, 1.1), 'hand': (.6, 1.1), 'foot': (.6, 1.1), 'width': (.72, 1.1)}
 
 def hand_length(arm, meshes):
@@ -168,7 +175,7 @@ def chain(arm):   # pose bones, parents first
     [visit(b) for b in arm.pose.bones if not b.parent]
     return out
 
-def borrow_run(arm, path):
+def borrow_clip(arm, path, name):
     # Each bone takes the source's world rotation away from its own T-pose;
     # the hips move like the source's, scaled to this kid's hip height.
     src, junk = import_fbx(path)
@@ -179,7 +186,7 @@ def borrow_run(arm, path):
     floor = lambda a, mw: (mw @ a.data.bones['mixamorig:LeftToeBase'].head_local).z
     hipz = lambda a, mw: (mw @ a.data.bones['mixamorig:Hips'].head_local).z
     ratio = (hipz(arm, mwT) - floor(arm, mwT)) / (hipz(src, mwS) - floor(src, mwS))
-    act = bpy.data.actions.new('run'); act.use_fake_user = True; arm.animation_data.action = act
+    act = bpy.data.actions.new(name); act.use_fake_user = True; arm.animation_data.action = act
     bones, prev = chain(arm), {}
     for f in range(lo, hi + 1):
         bpy.context.scene.frame_set(f); posed = {}
@@ -208,11 +215,25 @@ def borrow_run(arm, path):
     return act
 
 def face_group(o, arm):
-    # The face: head-weighted vertices in front of the head joint, below the brows.
-    hd = arm.matrix_world @ arm.data.bones['mixamorig:Head'].head_local; names = {g.index: g.name for g in o.vertex_groups}
-    ids = [v.index for v in o.data.vertices if (lambda g: g and names.get(g.group, '').endswith(':Head'))(max(v.groups, key=lambda g: g.weight, default=None))
-           and (o.matrix_world @ v.co).y < hd.y + .01 and (o.matrix_world @ v.co).z < hd.z + .16]
+    # Kept detailed when simplifying: the face (head-weighted vertices in front of
+    # the head joint, below the brows) and the hands and fingers.
+    hd = arm.matrix_world @ arm.data.bones['mixamorig:Head'].head_local; names = {g.index: g.name for g in o.vertex_groups}; ids = []
+    for v in o.data.vertices:
+        g = max(v.groups, key=lambda g: g.weight, default=None); n = names.get(g.group, '') if g else ''; p = o.matrix_world @ v.co
+        if (n.endswith(':Head') and p.y < hd.y + .01 and p.z < hd.z + .16) or 'Hand' in n:
+            ids.append(v.index)
     g = o.vertex_groups.new(name='face179'); g.add(ids, 1.0, 'REPLACE'); return g
+
+def twist(actions, bone, degrees):
+    q = Quaternion((0, 1, 0), np.radians(degrees))   # about the bone's own axis
+    for act in actions.values():
+        fcs = sorted((fc for fc in act.fcurves if fc.data_path == 'pose.bones["mixamorig:%s"].rotation_quaternion' % bone), key=lambda fc: fc.array_index)
+        if len(fcs) != 4: continue
+        for i in range(len(fcs[0].keyframe_points)):
+            r = Quaternion([fc.keyframe_points[i].co.y for fc in fcs]) @ q
+            for fc, v in zip(fcs, r):
+                fc.keyframe_points[i].co.y = v; fc.keyframe_points[i].handle_left.y = v; fc.keyframe_points[i].handle_right.y = v
+        for fc in fcs: fc.update()
 
 def decimate(o, triangles, protect):
     tris = sum(len(p.vertices) - 2 for p in o.data.polygons)
@@ -251,9 +272,11 @@ for kid, glb, folder, clips in ROSTER:
         for o in [a2] + junk:
             bpy.data.objects.remove(o, do_unlink=True)
     arm.animation_data_create(); arm.animation_data.action = None
-    if 'run' not in actions and kid in BORROW_RUN:
-        actions['run'] = borrow_run(arm, os.path.join(pack, 'ANIMATIONS', BORROW_RUN[kid][0], BORROW_RUN[kid][1] + '.fbx')); trim(actions['run'])
-        print('BORROWED run for', kid, 'from', BORROW_RUN[kid][0])
+    for name, (folder2, fname) in BORROW.get(kid, {}).items():
+        actions[name] = borrow_clip(arm, os.path.join(pack, 'ANIMATIONS', folder2, fname + '.fbx'), name); trim(actions[name])
+        print('BORROWED', name, 'for', kid, 'from', folder2, fname)
+    if kid in HAND_TWIST:
+        twist(actions, *HAND_TWIST[kid])
     hip_ratio, factors = reshape(arm, [m for m in meshes if m.type == 'MESH'], kid)
     for act in actions.values():   # hips motion follows the new hip height
         for fc in act.fcurves:
@@ -287,7 +310,9 @@ for kid, glb, folder, clips in ROSTER:
             if level:
                 c.data = o.data.copy(); c.name = o.name + '@lod%d' % level; bpy.context.scene.collection.objects.link(c); copies.append(c)
         for level, c in enumerate([o] + copies):
-            decimate(c, *CROWD_LODS[level]); c.vertex_groups.remove(c.vertex_groups['face179'])
+            if CROWD_LODS[level][0]:
+                decimate(c, *CROWD_LODS[level])
+            c.vertex_groups.remove(c.vertex_groups['face179'])
         meshes = meshes + copies
     img.scale(1024, 1024)
     for track in list(arm.animation_data.nla_tracks):   # the crowd only idles and walks
