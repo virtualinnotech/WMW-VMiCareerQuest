@@ -45,6 +45,10 @@ forward; clips that face sideways (npc04, npc08) are turned by their hips; and
 clips placed for a rig with its feet at 0 (npc01-03) have their hips moved so
 they stand on the T-pose soles, which the game puts on the floor.
 
+npc06 (the schoolboy) had a painted open mouth; `tools/close_mouth.py` closes it
+(rebuilt surface, repainted skin, a thin smile line), and his neck shrinks
+with his head so his face keeps its shape.
+
 Every crowd idle (the kids' crowd copies and the NPCs) keeps only a third of
 its motion (`rigtools.calm`), so the crowd stands quietly without heavy
 breathing; the kids students play as keep their full idle.

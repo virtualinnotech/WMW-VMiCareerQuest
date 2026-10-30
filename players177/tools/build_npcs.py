@@ -15,7 +15,8 @@
 # Like the kids students pick from, each is reshaped to kid04's proportions
 # (rigtools.reshape: head, hands, arms, legs, torso) and drawn at the same
 # height; its texture is brightened a little (BRIGHTEN) and its idle calmed to a
-# third of its motion (rigtools.calm), like the crowd copies of the kids. Like the kids' crowd copies, each file has a 1024 texture,
+# third of its motion (rigtools.calm), like the crowd copies of the kids.
+# npc06's painted open mouth is closed (close_mouth.py). Like the kids' crowd copies, each file has a 1024 texture,
 # idle and walk only, and three meshes: the full mesh close by (reduced to
 # 70,000 triangles when larger), and 15,000 and 5,000 triangles for the middle
 # and far distances (@lod1, @lod2; face and hands kept detailed in the first).
@@ -24,6 +25,7 @@ import bpy, sys, os, json, struct, re, math
 from mathutils import Matrix, Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rigtools import import_fbx, lowest, borrow_clip, face_group, decimate, trim, reshape, scale_hips, calm
+from close_mouth import close_mouth
 import numpy as np
 
 args = sys.argv[sys.argv.index('--') + 1:]
@@ -60,13 +62,16 @@ NPCS = [
     ('npc13', 'stylized-kid-cartoon-boy-character-rigged-and-animated', 'animations/animations/T-Pose.fbx', 'texture/texture/texture.JPEG',
      'animations/animations/Breathing Idle.fbx', 'animations/animations/Walking.fbx'),
 ]
-LODS = [(70000, 0), (15000, 1.0), (5000, 0)]   # triangles (the first only caps very heavy meshes), face and hand protection
+LODS = [(70000, 1.0), (15000, 1.0), (5000, 0)]   # triangles (the first only caps very heavy meshes), face and hand protection
 # (protection is eased off step by step when it keeps a mesh far over its share, or
 # leaves the body with too few triangles)
 TEXTURE = 1024
 IDLE_MOTION = .35          # share of the idle's motion kept (calmer breathing)
-BRIGHTEN = (1.15, 1.05)    # mid-tone lift (whites stay white) and saturation of the textures
-OVERRIDES = {'npc06': {'head': .62}}   # set by eye: his face squashes when shrunk further
+BRIGHTEN = (1.15, 1.0)     # mid-tone lift (whites stay white) and saturation of the textures (skin stays natural)
+# Set by eye: npc06's jaw and cheeks follow his neck bone, so the neck shrinks with the
+# head to keep the face's shape.
+OVERRIDES = {'npc06': {'head': .55, 'neck': .55}}
+CLOSE_MOUTH = {'npc06'}   # painted open mouths, closed (close_mouth.py)
 
 def glb_textures(path):
     # Each mesh node's base-colour image in a GLB: {mesh name: (bytes, extension)}.
@@ -85,8 +90,11 @@ def glb_textures(path):
 def key(name):
     return re.sub(r'[^a-z]', '', re.sub(r'\.\d+$', '', name.lower()))
 
-def material(name, path):
-    img = bpy.data.images.load(path); img.scale(TEXTURE, TEXTURE)
+def material(name, path, prepare=None):
+    img = bpy.data.images.load(path)
+    if prepare:   # work on the full-size texture first (fine paint work)
+        prepare(img)
+    img.scale(TEXTURE, TEXTURE)
     px = np.array(img.pixels[:], np.float32).reshape(-1, 4); rgb = 1 - (1 - np.clip(px[:, :3], 0, 1)) ** BRIGHTEN[0]
     luma = rgb @ np.array([.2126, .7152, .0722], np.float32); px[:, :3] = np.clip(luma[:, None] + (rgb - luma[:, None]) * BRIGHTEN[1], 0, 1)
     img.pixels = px.ravel(); img.update()
@@ -194,14 +202,18 @@ for npc, sub, tpose, texture, idle, walk in NPCS:
         arm.rotation_mode = 'XYZ'; arm.matrix_world = Matrix.Rotation(turn, 4, 'Z') @ arm.matrix_world; bpy.context.view_layer.update()
         print('TURNED', npc, round(math.degrees(turn)), 'degrees to face forward')
     # Textures: one file for every mesh, or each mesh's own from the GLB.
+    fix = None
+    if npc in CLOSE_MOUTH:
+        def fix(img, mesh=None):
+            return close_mouth(arm, mesh, img, report=lambda *a: print('MOUTH', npc, *a))
     if texture.startswith('glb:'):
         found = glb_textures(os.path.join(folder, texture[4:])); by_key = {key(k): v for k, v in found.items()}
         for i, o in enumerate(meshes):
             data, ext = by_key.get(key(o.name)) or (list(found.values())[0] if len(found) == 1 else max(found.values(), key=lambda v: len(v[0])))
             p = os.path.join(bpy.app.tempdir, '%s-%d%s' % (npc, i, ext)); open(p, 'wb').write(data)
-            o.data.materials.clear(); o.data.materials.append(material('%s-%d' % (npc, i), p))
+            o.data.materials.clear(); o.data.materials.append(material('%s-%d' % (npc, i), p, fix and (lambda img, o=o: fix(img, o))))
     else:
-        mat = material(npc, os.path.join(folder, texture))
+        mat = material(npc, os.path.join(folder, texture), fix and (lambda img: fix(img, meshes[0])))
         for o in meshes:
             o.data.materials.clear(); o.data.materials.append(mat)
     for a in list(bpy.data.actions):

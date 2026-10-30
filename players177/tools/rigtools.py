@@ -170,7 +170,7 @@ def reshape(arm, meshes, overrides=None):
         b.location = (0, 0, 0); b.rotation_quaternion = (1, 0, 0, 0); b.rotation_euler = (0, 0, 0); b.scale = (1, 1, 1)
     pb = lambda n: arm.pose.bones.get('mixamorig:' + n)
     plan = {'Spine': (f['width'], f['torso'], f['width']), 'Spine1': (f['width'], f['torso'], f['width']), 'Spine2': (f['width'], f['torso'], f['width']),
-            'Neck': (1, 1, 1), 'Head': (f['head'],) * 3}
+            'Neck': (f.get('neck', 1),) * 3, 'Head': (f['head'],) * 3}   # neck: for faces whose jaw follows the neck bone
     for side in ('Left', 'Right'):
         w = f['width']   # arms and legs slim (or fill out) with the torso
         plan.update({side + 'Shoulder': (1, 1, 1), side + 'Arm': (w, f['arm'], w), side + 'ForeArm': (w, f['arm'], w), side + 'Hand': (f['hand'],) * 3,
