@@ -6,14 +6,16 @@
 # idle and kid04's idle and walk, retargeted bone by bone (rigtools.borrow_clip).
 # npc05's light mesh doesn't fit its texture, so it uses the full model (GLB)
 # with its own clips copied over from the light rig. npc04's and npc08's clips
-# face about 90 degrees sideways; any clip more than 30 degrees off is turned
+# face about 90 degrees sideways; any clip more than 12 degrees off is turned
 # to face forward by rotating its hips (face_front). Some clips also stand the
 # character higher than its T-pose (their hips are placed for a rig with its feet
 # at 0); each clip's hips are moved so its lowest point meets the T-pose soles,
 # which the game stands on the floor (ground). npc06's skeleton faces
 # sideways, so every character is first turned to face forward like the rest.
-# They are not reshaped or recoloured: the game draws them at the same height as
-# the other kids. Like the kids' crowd copies, each file has a 1024 texture,
+# Like the kids students pick from, each is reshaped to kid04's proportions
+# (rigtools.reshape: head, hands, arms, legs, torso) and drawn at the same
+# height; its texture is brightened a little (BRIGHTEN) and its idle calmed to a
+# third of its motion (rigtools.calm), like the crowd copies of the kids. Like the kids' crowd copies, each file has a 1024 texture,
 # idle and walk only, and three meshes: the full mesh close by (reduced to
 # 70,000 triangles when larger), and 15,000 and 5,000 triangles for the middle
 # and far distances (@lod1, @lod2; face and hands kept detailed in the first).
@@ -21,7 +23,8 @@
 import bpy, sys, os, json, struct, re, math
 from mathutils import Matrix, Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from rigtools import import_fbx, lowest, borrow_clip, face_group, decimate, trim
+from rigtools import import_fbx, lowest, borrow_clip, face_group, decimate, trim, reshape, scale_hips, calm
+import numpy as np
 
 args = sys.argv[sys.argv.index('--') + 1:]
 pack, kids, out, only = args[0], args[1], args[2], set(args[3:])
@@ -61,6 +64,9 @@ LODS = [(70000, 0), (15000, 1.0), (5000, 0)]   # triangles (the first only caps 
 # (protection is eased off step by step when it keeps a mesh far over its share, or
 # leaves the body with too few triangles)
 TEXTURE = 1024
+IDLE_MOTION = .35          # share of the idle's motion kept (calmer breathing)
+BRIGHTEN = (1.15, 1.05)    # mid-tone lift (whites stay white) and saturation of the textures
+OVERRIDES = {'npc06': {'head': .62}}   # set by eye: his face squashes when shrunk further
 
 def glb_textures(path):
     # Each mesh node's base-colour image in a GLB: {mesh name: (bytes, extension)}.
@@ -81,6 +87,9 @@ def key(name):
 
 def material(name, path):
     img = bpy.data.images.load(path); img.scale(TEXTURE, TEXTURE)
+    px = np.array(img.pixels[:], np.float32).reshape(-1, 4); rgb = 1 - (1 - np.clip(px[:, :3], 0, 1)) ** BRIGHTEN[0]
+    luma = rgb @ np.array([.2126, .7152, .0722], np.float32); px[:, :3] = np.clip(luma[:, None] + (rgb - luma[:, None]) * BRIGHTEN[1], 0, 1)
+    img.pixels = px.ravel(); img.update()
     mat = bpy.data.materials.new(name); mat.use_nodes = True; bsdf = mat.node_tree.nodes['Principled BSDF']
     tex = mat.node_tree.nodes.new('ShaderNodeTexImage'); tex.image = img
     mat.node_tree.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
@@ -102,7 +111,7 @@ def face_front(arm, act):
     for f in range(lo, hi + 1, max(1, (hi - lo) // 8)):
         bpy.context.scene.frame_set(f); angles.append(facing(arm))
     turn = sum(angles) / len(angles)
-    if abs(turn) > 30:
+    if abs(turn) > 12:
         pb = arm.pose.bones['mixamorig:Hips']; base = arm.matrix_world @ pb.bone.matrix_local; pivot = base.translation.copy()
         spin = Matrix.Translation(pivot) @ Matrix.Rotation(math.radians(turn), 4, 'Z')   # same sign: the angle grows clockwise @ Matrix.Translation(-pivot)
         frames = {}
@@ -200,7 +209,12 @@ for npc, sub, tpose, texture, idle, walk in NPCS:
     arm.animation_data_create(); arm.animation_data.action = None
     actions = {'idle': clip(arm, folder, idle, 'idle'), 'walk': clip(arm, folder, walk, 'walk')}
     for act in actions.values():
-        face_front(arm, act); ground(arm, meshes, act)
+        face_front(arm, act)
+    ratio, shape = reshape(arm, meshes, OVERRIDES.get(npc)); scale_hips(actions.values(), ratio)
+    print('SHAPE', npc, {k: round(v, 2) for k, v in shape.items()})
+    calm(actions['idle'], IDLE_MOTION)
+    for act in actions.values():
+        ground(arm, meshes, act)
     for name in ('idle', 'walk'):
         track = arm.animation_data.nla_tracks.new(); track.name = name
         track.strips.new(name, int(actions[name].frame_range[0]), actions[name])

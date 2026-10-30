@@ -30,7 +30,9 @@ distances; the game uses these instead of simplifying the mesh itself.
 
 Thirteen more kids from the supplied "NPC's" pack are only ever in the crowd
 (`npc01-crowd.glb` ... `npc13-crowd.glb`; npc02 is the denim boy). They keep
-their own look and are drawn at the same height as the other kids. Built by
+their own faces and clothes, but like the kids students pick from they are
+reshaped to kid04's proportions and drawn at the same height; their textures
+are brightened a little to match the kids. Built by
 `tools/build_npcs.py` (shared steps in `tools/rigtools.py`):
 
 ```
@@ -42,6 +44,10 @@ clips: kid04's), retargeted bone by bone. Rigs that face sideways are turned
 forward; clips that face sideways (npc04, npc08) are turned by their hips; and
 clips placed for a rig with its feet at 0 (npc01-03) have their hips moved so
 they stand on the T-pose soles, which the game puts on the floor.
+
+Every crowd idle (the kids' crowd copies and the NPCs) keeps only a third of
+its motion (`rigtools.calm`), so the crowd stands quietly without heavy
+breathing; the kids students play as keep their full idle.
 
 The student's own character is never in the crowd: the crowd is built from
 every kid except the one they chose (`assignCrowdModels` in venue-frame.html).

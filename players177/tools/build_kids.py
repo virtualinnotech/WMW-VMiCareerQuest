@@ -25,12 +25,12 @@
 # texture, the same skeleton, idle and walk, and three meshes: the full
 # original mesh for close by, and 15,000 and 5,000 triangles (face and hands
 # kept detailed) for the game's middle and far distances (mesh names end
-# @lod1 and @lod2).
+# @lod1 and @lod2). Its idle is calmer: a third of the motion (rigtools.calm).
 # Usage: blender -b --factory-startup --python build_kids.py -- <pack folder with GLB/ and ANIMATIONS/> <out folder> [kid01 ...]
 import bpy, sys, os, json, struct
 from mathutils import Matrix, Quaternion
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from rigtools import import_fbx, reverse, sole_lift, borrow_clip, face_group, twist, decimate, trim
+from rigtools import import_fbx, reverse, sole_lift, borrow_clip, face_group, twist, decimate, trim, reshape, scale_hips, calm
 import numpy as np
 
 args = sys.argv[sys.argv.index('--') + 1:]
@@ -61,72 +61,9 @@ def glb_basecolor(path, folder):
     open(dst, 'wb').write(data); return dst
 
 
-# kid04's body, measured from its T-pose (model units): torso is hips to neck,
-# arm is shoulder joint to wrist, leg is hip joint to ankle, head is the head
-# joint to the top of the hair, hand is wrist to index knuckle, foot is the
-# ankle's height, width is shoulder joint to shoulder joint.
-# Hand is measured on the mesh: wrist to fingertip along the forearm.
-KID04 = {'torso': .2758, 'arm': .2286, 'leg': .3974, 'head': .1789, 'hand': .0898, 'foot': .0748, 'width': .2003}
-HAND_SHARE = .6   # how far toward kid04's hand size (1 = all the way)
 OVERRIDES = {'kid02': {'arm': .80}}   # set by eye
 CROWD_LODS = [(None, 0), (15000, 1.0), (5000, 0)]   # triangles (None: the full mesh), face and hand protection
-LIMITS = {'torso': (.85, 1.25), 'arm': (.75, 1.15), 'leg': (.85, 1.2), 'head': (.45, 1.1), 'hand': (.6, 1.1), 'foot': (.6, 1.1), 'width': (.72, 1.1)}
-
-def hand_length(arm, meshes):
-    mw = arm.matrix_world; wrist = mw @ arm.data.bones['mixamorig:LeftHand'].head_local
-    axis = (wrist - mw @ arm.data.bones['mixamorig:LeftForeArm'].head_local).normalized(); best = 0
-    for o in meshes:
-        names = {g.index: g.name for g in o.vertex_groups}
-        for v in o.data.vertices:
-            g = max(v.groups, key=lambda g: g.weight, default=None)
-            if g and names.get(g.group, '').startswith('mixamorig:LeftHand'):
-                best = max(best, (o.matrix_world @ v.co - wrist).dot(axis))
-    return best
-
-def measure(arm, meshes):
-    mw = arm.matrix_world; P = lambda n: mw @ arm.data.bones['mixamorig:' + n].head_local; d = lambda a, b: (a - b).length
-    zs = [(o.matrix_world @ v.co).z for o in meshes for v in o.data.vertices]; lo, hi = min(zs), max(zs)
-    return {'torso': d(P('Neck'), P('Hips')), 'arm': d(P('LeftForeArm'), P('LeftArm')) + d(P('LeftHand'), P('LeftForeArm')),
-            'leg': d(P('LeftLeg'), P('LeftUpLeg')) + d(P('LeftFoot'), P('LeftLeg')), 'head': hi - P('Head').z,
-            'hand': hand_length(arm, meshes), 'foot': P('LeftFoot').z - lo, 'width': d(P('LeftArm'), P('RightArm')), 'hips': P('Hips').z - lo}
-
-def reshape(arm, meshes, kid):
-    m = measure(arm, meshes)
-    # Overall size is free (the game sets every kid's height): pick the one
-    # that changes torso, arms and legs least, then match kid04 from there.
-    size = (m['torso'] / KID04['torso'] * m['arm'] / KID04['arm'] * m['leg'] / KID04['leg']) ** (1 / 3)
-    f = {k: min(max((KID04[k] * size / m[k]) ** (HAND_SHARE if k == 'hand' else 1), LIMITS[k][0]), LIMITS[k][1]) for k in KID04}
-    f.update(OVERRIDES.get(kid, {}))
-    if all(abs(v - 1) < .01 for v in f.values()):
-        return 1.0, f
-    for b in arm.pose.bones:   # start from the T-pose itself
-        b.location = (0, 0, 0); b.rotation_quaternion = (1, 0, 0, 0); b.rotation_euler = (0, 0, 0); b.scale = (1, 1, 1)
-    pb = lambda n: arm.pose.bones.get('mixamorig:' + n)
-    plan = {'Spine': (f['width'], f['torso'], f['width']), 'Spine1': (f['width'], f['torso'], f['width']), 'Spine2': (f['width'], f['torso'], f['width']),
-            'Neck': (1, 1, 1), 'Head': (f['head'],) * 3}
-    for side in ('Left', 'Right'):
-        w = f['width']   # arms and legs slim (or fill out) with the torso
-        plan.update({side + 'Shoulder': (1, 1, 1), side + 'Arm': (w, f['arm'], w), side + 'ForeArm': (w, f['arm'], w), side + 'Hand': (f['hand'],) * 3,
-                     side + 'UpLeg': (w, f['leg'], w), side + 'Leg': (w, f['leg'], w), side + 'Foot': (f['foot'],) * 3})
-    # Scaled bones don't pass their scale on (positions still follow), except
-    # fingers, toes and the head's own children, which scale with them.
-    for name, sc in plan.items():
-        b = pb(name)
-        if b:
-            b.bone.inherit_scale = 'NONE'; b.scale = sc
-    bpy.context.view_layer.update()
-    for o in meshes:
-        bpy.context.view_layer.objects.active = o
-        for md in [md for md in o.modifiers if md.type == 'ARMATURE']:
-            bpy.ops.object.modifier_apply(modifier=md.name)
-    bpy.context.view_layer.objects.active = arm; bpy.ops.object.mode_set(mode='POSE'); bpy.ops.pose.select_all(action='SELECT')
-    bpy.ops.pose.armature_apply(selected=False); bpy.ops.object.mode_set(mode='OBJECT')
-    for o in meshes:
-        md = o.modifiers.new('Armature', 'ARMATURE'); md.object = arm
-    for b in arm.data.bones:
-        b.inherit_scale = 'FULL'
-    after = measure(arm, meshes)
-    return after['hips'] / m['hips'], f
+CROWD_IDLE_MOTION = .35   # share of the idle's motion the crowd keeps (calmer breathing)
 
 
 for kid, glb, folder, clips in ROSTER:
@@ -158,12 +95,8 @@ for kid, glb, folder, clips in ROSTER:
         print('BORROWED', name, 'for', kid, 'from', folder2, fname)
     if kid in HAND_TWIST:
         twist(actions, *HAND_TWIST[kid])
-    hip_ratio, factors = reshape(arm, [m for m in meshes if m.type == 'MESH'], kid)
-    for act in actions.values():   # hips motion follows the new hip height
-        for fc in act.fcurves:
-            if fc.data_path.endswith('.location'):
-                for k in fc.keyframe_points:
-                    k.co.y *= hip_ratio; k.handle_left.y *= hip_ratio; k.handle_right.y *= hip_ratio
+    hip_ratio, factors = reshape(arm, [m for m in meshes if m.type == 'MESH'], OVERRIDES.get(kid))
+    scale_hips(actions.values(), hip_ratio)   # hips motion follows the new hip height
     print('SHAPE', kid, {k: round(v, 3) for k, v in factors.items()}, 'hips x', round(hip_ratio, 3))
     actions['walk_backward'] = reverse(actions['walk'], 'walk_backward'); actions['walk_backward'].use_fake_user = True
     lift, bind, clip = sole_lift(arm, [m for m in meshes if m.type == 'MESH'], actions)
@@ -199,6 +132,11 @@ for kid, glb, folder, clips in ROSTER:
     for track in list(arm.animation_data.nla_tracks):   # the crowd only idles and walks
         if track.name not in ('idle', 'walk'):
             arm.animation_data.nla_tracks.remove(track)
+    # The crowd stands quietly: its idle keeps a third of the clip's motion.
+    still = calm(actions['idle'].copy(), CROWD_IDLE_MOTION); still.name = 'idle'; still.use_fake_user = True
+    for track in arm.animation_data.nla_tracks:
+        if track.name == 'idle':
+            track.strips[0].action = still
     crowd = os.path.join(out, kid + '-crowd.glb')
     bpy.ops.export_scene.gltf(filepath=crowd, export_format='GLB', export_animation_mode='NLA_TRACKS', export_optimize_animation_size=True,
                               export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7,
