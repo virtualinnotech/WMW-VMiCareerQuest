@@ -11,7 +11,7 @@ const tag=process.argv.find(a=>a.startsWith('--tag='))?.slice(6)||'result';
   await page.waitForFunction(()=>window.Rivian147?.snapshot().ready&&!Loading155.blocked,null,{timeout:300000});
   await page.evaluate(()=>{
    StudentRewards100.cheat();StudentRewards100.close();Rivian147.update(0);state.paused=false;
-   player.position=[4,PHYSICS.radii[1]+.015,36.5];
+   player.position=[2.65,PHYSICS.radii[1]+.015,39.25];
    if(!Rivian147.enter())throw Error('Cannot enter Rivian');
    window.metrics161={};window.frames161=[];window.history161=[];
    const wrap=(obj,key,label=key)=>{

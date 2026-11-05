@@ -11,6 +11,10 @@ Mouse-wheel zoom uses an ambulance-specific 2.8-12 unit range; Reset view restor
 the default chase view. Nearby low rails raise the camera rather than pushing it
 inside the cab. Exiting restores the original walking-camera settings.
 
+Revision 189 lowers the chase camera (`CHASE` in ambulance.js: pitch .06) and
+aims it 3.5 units down the road ahead of the ambulance instead of at its roof,
+so drivers see farther ahead.
+
 While mounted, a circular heading-up navigation map replaces the bottom-left
 walking controls. It follows the ambulance, highlights the remaining checkpoint
 route in yellow, and shows the hospital, river, bridges and surrounding roads.

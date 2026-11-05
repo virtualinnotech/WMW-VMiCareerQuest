@@ -1,6 +1,7 @@
 # Rivian reward vehicle
 
-The supplied R1S is parked beside the main entrance at `(4, 37.5)`.
+The supplied R1S is parked at the curb in front of the main entrance, just ahead
+of the first front school bus and facing the same way (`(2.65, 40.25)`, yaw -90°).
 It unlocks only after `StudentProgress99.complete()`. Startup revision 155 prepares
 the model behind the loading screen; the parked car remains hidden and unavailable
 until that reward gate is satisfied.
@@ -44,6 +45,11 @@ collision checks and traffic outcomes are preserved.
 full-scan implementation. `performance159.cjs --stress` records local CPU profiles
 and frame intervals for sustained driving into traffic and large-window turning.
 Profiler timings are diagnostic, not a promised device-independent FPS.
+
+Revision 189 lowers the chase camera (`CHASE` in runtime.js) and aims it three
+units down the road ahead of the car, so drivers see farther ahead. When a
+parked school bus sits right behind the car (as at its parking spot), the camera
+rises over the bus roof and eases back down as the car pulls away.
 
 Build: `node rivian147/prepare.mjs` (source extracted under `../work/rivian147`).
 Test: `NODE_PATH=../work/browser/node_modules node rivian147/browser-test.cjs`.

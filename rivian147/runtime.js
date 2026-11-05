@@ -1,7 +1,14 @@
 window.Rivian147=(()=>{
- const HOME={x:4,z:37.5,yaw:Math.PI/2},scene=RivianScene147,controls=new Set(),COLLIDER='Rivian147 parked';
+ // Parked at the curb just ahead of the first front school bus, facing the same way.
+ const HOME={x:2.65,z:40.25,yaw:-Math.PI/2},scene=RivianScene147,controls=new Set(),COLLIDER='Rivian147 parked';
  const s={...HOME,y:0,speed:0,steer:0,spin:0,time:0,lights:true,braking:false,signal:false,mounted:false,visible:false,ready:false,error:null,impacts:0};
  const dynamics=Driving154.create();
+ // Chase camera: low behind the car and aimed down the road ahead of it.
+ const CHASE={pitch:.1,lift:.16,distance:3.4,ahead:3,aim:.65};
+ let buses=[],rise=0;
+ // Does the ray cross a parked school bus (static boxes, taller than the Rivian)?
+ function busHit(o,d,max){if(!buses.length)buses=colliders.filter(c=>/School_bus_/.test(c.name));
+  return buses.some(c=>{let t0=0,t1=max;for(let i=0;i<3;i++){if(Math.abs(d[i])<1e-9){if(o[i]<c.lo[i]||o[i]>c.hi[i])return false;continue;}let a=(c.lo[i]-o[i])/d[i],b=(c.hi[i]-o[i])/d[i];if(a>b)[a,b]=[b,a];t0=Math.max(t0,a);t1=Math.min(t1,b);if(t0>t1)return false;}return true;});}
  let physics,saved,prompt,panel,meter,viewButton,lightButton,lastUI='',contact=null,loading=false;
  const busy=()=>window.Hotel146?.active||window.Hibachi145?.active||window.Scooter100?.mounted||window.FarmScene63?.active||window.Forklift34?.mounted||window.Ambulance35?.mounted||window.Farming36?.mounted||window.Crane39?.active||window.Robotics37?.active||window.MRI42?.active||window.Welding43?.active||window.PCChallenge66?.active||window.Drone44?.mission;
  const height=(x,z)=>window.District115?.heightAt(x,z)??floorHeightAt(x,z);
@@ -16,7 +23,7 @@ window.Rivian147=(()=>{
  }
  function seat(){player.position=[s.x,s.y+PHYSICS.radii[1]+.06,s.z];player.yaw=s.yaw+Math.PI;player.walkAmount=0;player.vy=0;player.grounded=true;}
  function enter(){if(!near()||!available()||!unlocked()||!scene.ready)return false;
-  saved={firstPerson:state.firstPerson,radius:state.radius,pitch:state.pitch,orbitYaw:state.orbitYaw};s.mounted=true;s.braking=false;s.speed=0;controls.clear();keys.clear();physics.reset(s.x,s.z,s.yaw);dynamics.reset(s.yaw);parkedCollider();seat();state.firstPerson=false;state.overview=null;state.orbitYaw=0;state.pitch=.12;StudentRewards100.claim();document.body.classList.add('rivian147-driving');updateUI();updateCamera(0,true);canvas.focus();return true;
+  saved={firstPerson:state.firstPerson,radius:state.radius,pitch:state.pitch,orbitYaw:state.orbitYaw};s.mounted=true;s.braking=false;s.speed=0;controls.clear();keys.clear();physics.reset(s.x,s.z,s.yaw);dynamics.reset(s.yaw);parkedCollider();seat();state.firstPerson=false;state.overview=null;state.orbitYaw=0;state.pitch=CHASE.pitch;StudentRewards100.claim();document.body.classList.add('rivian147-driving');updateUI();updateCamera(0,true);canvas.focus();return true;
  }
  function exit(force=false){if(!s.mounted)return true;if(!force&&Math.abs(s.speed)>.10){toast('Stop the Rivian before getting out.');return false;}physics.stop();let destination=null;
   for(const x of [1.65,-1.65,2,-2]){const p=tp(scene.root(s),x,0,0),y=height(p[0],p[2]);if(window.District115?.inWater(p[0],p[2]))continue;
@@ -25,16 +32,20 @@ window.Rivian147=(()=>{
   if(!destination&&!force){toast('Move to an open area before getting out.');return false;}
   s.mounted=false;s.speed=0;s.steer=0;s.braking=false;s.roll=s.pitch=0;dynamics.reset(s.yaw);controls.clear();keys.clear();Object.assign(state,saved);if(destination)player.position=destination;player.walkAmount=0;document.body.classList.remove('rivian147-driving');parkedCollider();updateUI();updateCamera(0,true);canvas.focus();return true;
  }
- function toggleView(){if(!s.mounted)return;state.firstPerson=!state.firstPerson;state.orbitYaw=0;state.pitch=0;dynamics.snap(s.yaw);updateUI();updateCamera(0,true);}
+ function toggleView(){if(!s.mounted)return;state.firstPerson=!state.firstPerson;state.orbitYaw=0;state.pitch=CHASE.pitch;dynamics.snap(s.yaw);updateUI();updateCamera(0,true);}
  function cameraView(dt,immediate=false){if(!s.mounted)return false;const r=scene.root(s);
   if(state.firstPerson){camera=tp(r,.385,1.48,-.23);target=tp(r,.08,1.16,2.8);}
   else{
-   const yaw=dynamics.state.followYaw-(state.orbitYaw||0),head=[s.x,s.y+.60,s.z],back=[-Math.sin(yaw),.42+Math.max(-.2,Math.min(.6,state.pitch)),-Math.cos(yaw)],dir=norm(back),desired=3.25;
+   const yaw=dynamics.state.followYaw-(state.orbitYaw||0),head=[s.x,s.y+.60,s.z],lift=CHASE.lift+Math.max(-.1,Math.min(.6,state.pitch)),ray=l=>norm([-Math.sin(yaw),l,-Math.cos(yaw)]),desired=CHASE.distance;
+   // The low camera rises over a bus parked right behind (as at the Rivian's
+   // spot) and eases back down once the car pulls away.
+   let need=0;for(const extra of [0,.2,.4,.6]){need=extra;if(!busHit(head,ray(lift+extra),desired))break;}
+   rise=immediate?need:rise+(need-rise)*Math.min(1,dt*3);const dir=ray(lift+rise);
    // Street props (benches, bins, lamp posts), standing or knocked over, never
    // pull the camera in: a prop the Rivian hit flew through this ray and made
    // the view jump in and out on every impact.
    const hit=raycast(head,dir,desired,o=>!o.boundary&&o.name!==COLLIDER&&o.kind!=='cityFurniture'&&o.kind!=='fallenStreetProp'),radius=hit?Math.max(.4,hit.distance-.15):desired;
-   camera=add(head,mul(dir,radius));target=tp(r,0,1.1,.7);
+   camera=add(head,mul(dir,radius));target=[s.x+Math.sin(yaw)*CHASE.ahead,s.y+CHASE.aim,s.z+Math.cos(yaw)*CHASE.ahead];
   }
   return true;
  }
@@ -66,7 +77,7 @@ window.Rivian147=(()=>{
   physics=AmbulancePhysics35.create(Ambulance35.test.physics.shapes.filter(x=>x.name!==COLLIDER),()=>s.impacts++,{width:.89,length:2.04,height:.73,wheelbase:1.245,maxSpeed:6.6,reverseSpeed:1.8,steerAngle:.55,lateralGrip:6,id:'rivian147',mass:3100,traffic:()=>CityLife111.trafficBodies(),lanes:()=>CityLife111.mapLanes(),heightAt:height,driveable:(x,z)=>!District115.inWater(x,z),player:()=>s.mounted?null:[player.position[0],player.position[2]],resetVisible:(x,z)=>Math.hypot(x-camera[0],z-camera[2])<35});physics.reset(s.x,s.z,s.yaw);s.ready=true;update(0);
  }catch(e){s.error=e.message;console.error('Rivian147',e);}}
  window.addEventListener('blur',()=>{controls.clear();keys.clear();if(s.mounted){physics.stop();s.speed=0;}});
- return {init,update,enter,exit,handleKey,cameraView,toggleView,headlights,draw:p=>scene.draw(s,p),drawLighting:p=>scene.draw(s,p,true),get mounted(){return s.mounted;},snapshot:()=>({...s,followYaw:dynamics.state.followYaw,modelReady:scene.ready,loading,firstPerson:s.mounted&&state.firstPerson,unlocked:unlocked(),batches:scene.parts.length}),test:{state:s,controls,scene,near,dynamics,get physics(){return physics;},place(x,z,yaw){Object.assign(s,{x,z,yaw,y:height(x,z)+.006,speed:0,roll:0,pitch:0});physics.reset(x,z,yaw);dynamics.reset(yaw);if(s.mounted)seat();else parkedCollider();}}};
+ return {init,update,enter,exit,handleKey,cameraView,toggleView,headlights,draw:p=>scene.draw(s,p),drawLighting:p=>scene.draw(s,p,true),get mounted(){return s.mounted;},snapshot:()=>({...s,followYaw:dynamics.state.followYaw,modelReady:scene.ready,loading,firstPerson:s.mounted&&state.firstPerson,unlocked:unlocked(),batches:scene.parts.length}),test:{state:s,controls,scene,near,dynamics,chase:CHASE,get physics(){return physics;},place(x,z,yaw){Object.assign(s,{x,z,yaw,y:height(x,z)+.006,speed:0,roll:0,pitch:0});physics.reset(x,z,yaw);dynamics.reset(yaw);if(s.mounted)seat();else parkedCollider();}}};
 })();
 {
  const draw=RobotExhibit20.draw,update=RobotExhibit20.update,view=updateCamera,walk=advancePlayer,avatar=renderAvatar,actor=drawActor,projection=perspective,travel=teleport;

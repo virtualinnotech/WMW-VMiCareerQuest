@@ -10,7 +10,7 @@ const out=path.resolve(__dirname,'../../work/rivian147');
   await page.waitForFunction(()=>window.Rivian147?.snapshot().ready&&!Loading155.blocked,null,{timeout:300000});
   await page.evaluate(()=>{
    StudentRewards100.cheat();StudentRewards100.close();Rivian147.update(0);
-   player.position=[4,PHYSICS.radii[1]+.015,36.5];state.paused=false;
+   player.position=[2.65,PHYSICS.radii[1]+.015,39.25];state.paused=false;
    window.measures159={};
    window.wrap159=(obj,key,label=key)=>{
     const original=obj[key];if(typeof original!=='function')return;

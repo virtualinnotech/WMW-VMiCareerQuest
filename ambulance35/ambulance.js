@@ -117,7 +117,9 @@ const Ambulance35=(()=>{
   const near=()=>s.status==='ready'&&!state.overview&&distance([s.x,s.z],[player.position[0],player.position[2]])<2.3&&Math.abs(player.position[1]-height(s.x,s.z))<2;
   const editing=()=>['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)||document.activeElement?.isContentEditable;
   const lampLit=(red,now=performance.now())=>s.mounted&&Math.floor(now/250)%2===(red?0:1);
-  function resetView(){if(!s.mounted)return;Object.assign(state,{firstPerson:false,radius:5,orbitYaw:0,pitch:.22});dynamics.snap(s.yaw);updateCamera(0,true);}
+  // Chase camera: low behind the ambulance and aimed down the road ahead of it.
+  const CHASE={pitch:.06,ahead:3.5,aim:1};
+  function resetView(){if(!s.mounted)return;Object.assign(state,{firstPerson:false,radius:5,orbitYaw:0,pitch:CHASE.pitch});dynamics.snap(s.yaw);updateCamera(0,true);}
   function vehicleCamera(dt,immediate=false){
     if(!s.mounted||state.overview)return false;
     state.firstPerson=false;
@@ -131,7 +133,7 @@ const Ambulance35=(()=>{
       if(radius>=Math.min(2.8,desired))break;
     }
     smoothRadius=immediate?chosen.radius:chosen.radius<smoothRadius?chosen.radius:smoothRadius+(chosen.radius-smoothRadius)*Math.min(1,Math.max(0,dt)*7);
-    target=head;camera=add(head,mul(chosen.dir,smoothRadius));return true;
+    target=[head[0]-Math.sin(angle)*CHASE.ahead,head[1]-1.15+CHASE.aim,head[2]-Math.cos(angle)*CHASE.ahead];camera=add(head,mul(chosen.dir,smoothRadius));return true;
   }
   function pedestrians(){
     const crowd=CrowdGraphics.ready?EventFlow22.combined(crowdState.sim?.agents||[]):[];
@@ -160,7 +162,7 @@ const Ambulance35=(()=>{
     if(s.mounted||!near()||editing()||state.paused||HubGuide.snapshot().dialogOpen||window.Forklift34?.mounted||window.Farming36?.mounted)return;
     if(s.phase!=='ready'){toast('Restart the ambulance challenge for a new attempt.');return;}
     saved={firstPerson:state.firstPerson,radius:state.radius,orbitYaw:state.orbitYaw,pitch:state.pitch,ghost:state.ghost};
-    Object.assign(state,{firstPerson:false,radius:5,orbitYaw:0,pitch:.22,ghost:false,overview:null});
+    Object.assign(state,{firstPerson:false,radius:5,orbitYaw:0,pitch:CHASE.pitch,ghost:false,overview:null});
     s.mounted=true;s.phase='running';s.started=performance.now();s.elapsed=0;
     physics.reset(s.x,s.z,s.yaw);dynamics.reset(s.yaw);
     controls.clear();keys.clear();seat();uiPanel.open=true;canvas.focus();updateUI();
@@ -391,7 +393,7 @@ const Ambulance35=(()=>{
     for(const p of parts){const unlit=p.batch.unlit,emission=p.batch.emission;p.batch.unlit=false;p.batch.emission=[0,0,0];drawBatch(p.batch,mm(root,bind[p.node]));p.batch.unlit=unlit;p.batch.emission=emission;}
   }
   async function init(){ui();AmbulanceMap120.init();try{await load();buildScenery();buildPhysics();s.status='ready';}catch(e){s.status='error';s.error=e.message;console.error(e);}updateUI();}
-  return {init,update,draw,drawLighting:planes=>draw(planes,true),visit,enter,exit,reset,vehicleCamera,refreshWorld:buildPhysics,get mounted(){return s.mounted;},snapshot:()=>({...s,followYaw:dynamics.state.followYaw,route:route.map(p=>[...p]),parked:{...parked},turnMarkers:turnMarkers.map(p=>({...p})),navigation:'floating-blue-turn-chevrons'}),test:{state:s,controls,height,onCourse,blocked,nodes,worlds,lampLit,debris,pedestrianContact,dynamics,get physics(){return physics;},place(x,z,yaw){Object.assign(s,{x,z,yaw,speed:0,roll:0,pitch:0});physics.reset(s.x,s.z,yaw);dynamics.reset(yaw);if(s.mounted)seat();}}};
+  return {init,update,draw,drawLighting:planes=>draw(planes,true),visit,enter,exit,reset,vehicleCamera,refreshWorld:buildPhysics,get mounted(){return s.mounted;},snapshot:()=>({...s,followYaw:dynamics.state.followYaw,route:route.map(p=>[...p]),parked:{...parked},turnMarkers:turnMarkers.map(p=>({...p})),navigation:'floating-blue-turn-chevrons'}),test:{state:s,controls,height,onCourse,blocked,nodes,worlds,lampLit,debris,pedestrianContact,dynamics,chase:CHASE,get physics(){return physics;},place(x,z,yaw){Object.assign(s,{x,z,yaw,speed:0,roll:0,pitch:0});physics.reset(s.x,s.z,yaw);dynamics.reset(yaw);if(s.mounted)seat();}}};
 })();
 window.Ambulance35=Ambulance35;
 {
