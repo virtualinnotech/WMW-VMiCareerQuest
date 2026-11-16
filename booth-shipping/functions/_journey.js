@@ -1,9 +1,10 @@
 import { badRequest } from './_lib.js';
 
 // Student journeys: a student's progress saved under a short code, so they can
-// continue on any computer. Only what the game already keeps is stored (first
-// name, last initial, school and mission progress), and journeys nobody has
-// played for 60 days are deleted.
+// continue on any computer. Only the student's first and last name, school
+// and mission progress are stored (the last name tells apart two students with
+// the same first name at one school), and journeys nobody has played for 60
+// days are deleted.
 
 // No 0/O, 1/I/L or U, so a code read off paper can't be misread.
 const ALPHABET = '23456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -20,14 +21,19 @@ export function cleanCode(value) {
   return code.length === 8 && [...code].every((c) => ALPHABET.includes(c)) ? code : null;
 }
 
+const tidy = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+
 export function cleanStudent(body) {
-  const firstName = String(body?.firstName || '').trim().replace(/\s+/g, ' ');
-  const lastInitial = String(body?.lastInitial || '').trim().slice(0, 1).toUpperCase();
-  const school = String(body?.school || '').trim().replace(/\s+/g, ' ');
+  const firstName = tidy(body?.firstName);
+  // A game still open from before the last name was asked sends only the
+  // initial; it is kept with an empty last name.
+  const lastName = tidy(body?.lastName);
+  const lastInitial = (lastName || tidy(body?.lastInitial)).slice(0, 1).toUpperCase();
+  const school = tidy(body?.school);
   if (!/^\p{L}[\p{L} .'-]{0,29}$/u.test(firstName)) return { error: 'Type your first name (letters only).' };
-  if (!/^\p{L}$/u.test(lastInitial)) return { error: 'Type the first letter of your last name.' };
+  if (lastName ? !/^\p{L}[\p{L} .'-]{0,39}$/u.test(lastName) : !/^\p{L}$/u.test(lastInitial)) return { error: 'Type your last name (letters only).' };
   if (school.length < 2 || school.length > 80) return { error: 'Type the name of your school.' };
-  return { firstName, lastInitial, school };
+  return { firstName, lastName, lastInitial, school };
 }
 
 // The progress a game sends: a JSON object, kept small.
@@ -42,6 +48,18 @@ export function cleanPercent(value) {
   return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
 }
 
+// Tables made before the last name was asked get the column (empty for their
+// students); newer tables already have it.
+async function addLastName(db) {
+  const has = async () => (await db.prepare('PRAGMA table_info(journeys)').all()).results.some((c) => c.name === 'last_name');
+  if (await has()) return;
+  try {
+    await db.prepare("ALTER TABLE journeys ADD COLUMN last_name TEXT NOT NULL DEFAULT ''").run();
+  } catch (e) {
+    if (!(await has())) throw e; // unless another request added it first
+  }
+}
+
 let ready = null;
 // The table is created by the Worker itself the first time it is needed.
 export function ensureJourneys(db) {
@@ -50,6 +68,7 @@ export function ensureJourneys(db) {
       code TEXT PRIMARY KEY,
       first_name TEXT NOT NULL,
       last_initial TEXT NOT NULL,
+      last_name TEXT NOT NULL DEFAULT '',
       school TEXT NOT NULL,
       data TEXT NOT NULL DEFAULT '{}',
       percent INTEGER NOT NULL DEFAULT 0,
@@ -57,10 +76,12 @@ export function ensureJourneys(db) {
       updated_at TEXT NOT NULL
     )`),
     db.prepare('CREATE INDEX IF NOT EXISTS journeys_updated ON journeys (updated_at)'),
-  ]).catch((e) => {
-    ready = null;
-    throw e;
-  });
+  ])
+    .then(() => addLastName(db))
+    .catch((e) => {
+      ready = null;
+      throw e;
+    });
   return ready;
 }
 

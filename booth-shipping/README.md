@@ -86,8 +86,9 @@ functions/api/manifest.js        GET  -- what the student game reads, edge-cache
 functions/api/admin/fill-demo.js    POST -- {on} fill every open slot with a demo booth, or remove them all
 functions/api/admin/demo-slot.js    POST -- {sector, slotNumber, on} one slot's demo booth on/off
 functions/api/admin/check-booths.js GET  -- every booth in the fair whose file is missing
-functions/api/admin/journeys.js     GET  -- ?q= search student journeys (name, school, code) for a forgotten code
-functions/api/journey/start.js      POST -- new student journey: first name, last initial, school -> code
+functions/api/admin/journeys.js     GET  -- every student (newest played first), or ?q= search by name, school, code
+                                    POST /api/admin/journeys/delete -- {codes} delete students and their progress
+functions/api/journey/start.js      POST -- new student journey: first name, last name, school -> code
 functions/api/journey/load.js       GET  -- ?code= a journey's saved progress (Continue my journey)
 functions/api/journey/save.js       POST -- {code, data, percent} auto-save from the game
 functions/_journey.js               journey codes, checks, and the table the Worker creates itself
@@ -122,7 +123,10 @@ time, so it was a dead, broken link and has been removed.
 
 ## Admin page
 
-`/admin.html` lists every slot -- sector, status, company name,
+`/admin.html` has two tabs, **Employers** and **Students** (`/admin.html#students`
+opens straight on Students).
+
+**Employers** lists every slot -- sector, status, company name,
 contact email, when it shipped -- with a search box and, per slot:
 **Edit in studio** (opens `/design.html?admin_sector=...&admin_slot=...`
 in a new tab, loading that employer's saved design straight into the
@@ -145,10 +149,16 @@ one. Demo booths are 30 real booth-editor designs (5 per sector, from
 however many slots use them. Use them to run the full venue before the
 employers ship, then turn Fill off.
 
-**Find a student's code**: students save their progress under a journey
-code (see "Student journeys" below). If one forgets theirs, search by first
-name, school or part of the code, check the school and when they last
-played, and read them the code.
+**Students** lists every student who has started the fair (name, school,
+progress, when they last played and their code; see "Student journeys"
+below), most recently played first, with totals above. The search box
+filters as you type -- first name, last name, school or part of the code
+(e.g. "maria central") -- so a student who forgot their code can be found
+and read it. **Delete** on a row, or the checkboxes and **Delete selected**,
+removes students and their progress for good; their codes stop working,
+and a student still playing sees "This code is no longer on the server".
+The page holds up to 10,000 students at once; beyond that it shows the most
+recently played and searching asks the server.
 
 **Booth file check**: every time the slot list loads, the page checks
 that each booth in the fair points at a file that exists. Any that don't
@@ -205,7 +215,7 @@ real secret. For local `wrangler dev`, create a `.dev.vars` file
 ## Student journeys
 
 When the student fair opens, before the screen tour, students choose **Start
-my journey** (first name, last initial, school; they get a code like
+my journey** (first name, last name, school; they get a code like
 `K7PQ-2MXD` to write down) or **Continue my journey** (type the code; their
 missions, booth answers and rewards come back and the tour is skipped). On a
 computer that already has a journey the screen offers to continue it, or
@@ -219,9 +229,14 @@ two minutes), and closing the tab asks first, unless the student chose
 **Finish for today**. Browsers don't let a site change the wording of their
 own "Leave site?" box, which is why the reminder comes from the game first.
 
-The `journeys` table (code, first name, last initial, school, progress JSON,
-percent, dates) is created by the Worker on first use, so it needs no
-migration. Journeys nobody has played for 60 days are deleted. Codes have 8
+The `journeys` table (code, first name, last name and initial, school,
+progress JSON, percent, dates) is created by the Worker on first use, so it
+needs no migration; a table from before the last name was asked gets its
+`last_name` column added the same way (empty for those students, who show as
+"First L." on the admin page). The full last name tells apart two students
+with the same first name at one school; each New Game gets its own code
+either way, so students never share progress. The game itself still shows
+students as "First L." Journeys nobody has played for 60 days are deleted. Codes have 8
 characters with no 0/O, 1/I/L or U. The game's code is in `journey166/`;
 `?journey=0` on the student link skips the screen.
 

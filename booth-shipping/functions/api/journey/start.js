@@ -17,10 +17,10 @@ export async function onRequestPost(context) {
     const code = newCode();
     const result = await env.DB
       .prepare(
-        `INSERT OR IGNORE INTO journeys (code, first_name, last_initial, school, data, percent, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+        `INSERT OR IGNORE INTO journeys (code, first_name, last_initial, last_name, school, data, percent, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
       )
-      .bind(code, student.firstName, student.lastInitial, student.school, data, cleanPercent(body.percent))
+      .bind(code, student.firstName, student.lastInitial, student.lastName, student.school, data, cleanPercent(body.percent))
       .run();
     if (result.meta.changes) {
       if (Math.random() < 0.02) context.waitUntil(deleteOldJourneys(env.DB));

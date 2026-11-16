@@ -60,6 +60,7 @@ const ROUTES = [
   { method: 'GET', path: '/api/journey', handler: journeyLoad.onRequestGet },
   { method: 'POST', path: '/api/journey/save', handler: journeySave.onRequestPost },
   { method: 'GET', path: '/api/admin/journeys', handler: adminJourneys.onRequestGet },
+  { method: 'POST', path: '/api/admin/journeys/delete', handler: adminJourneys.onRequestPost },
 ];
 
 // The two links given out: /student (the fair) and /vendor (the booth

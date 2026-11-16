@@ -3,7 +3,7 @@
 The student fair (/student) opens on a home page while the fair loads behind
 it:
 
-- **New Game** opens Choose Your Character: first name, last initial and
+- **New Game** opens Choose Your Character: first name, last name and
   school above a 3D carousel of the eight kids (`players177/kid01-08.glb`).
   "Let's go" makes the student's game code (journey166), shows it, and the
   student enters the fair as that kid.

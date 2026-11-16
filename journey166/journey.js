@@ -1,7 +1,7 @@
 /* Student journeys (166). A student's progress is saved on the fair's server
  * under a short code (like K7PQ-2MXD) so they can keep going on any computer.
  * Before the screen tour, "Start my journey" asks for a first name, last
- * initial and school and gives a code; "Continue my journey" takes a code and
+ * name and school and gives a code; "Continue my journey" takes a code and
  * brings everything back. On a computer that already has a journey it offers
  * to continue it, or "Not you? Start a new journey". Progress saves in the
  * background whenever it changes; the code stays in a chip under the logo,
@@ -96,11 +96,11 @@ window.Journey166=(()=>{
   show(h('p',{class:'j-eyebrow'},'Start my journey'),h('h2',{},'Tell us who you are'),
    h('p',{},'Your name and school only help your teacher find your code if you ever forget it.'),
    form([field('First name',{name:'firstName',autocomplete:'given-name',maxlength:'30',required:true}),
-    field('First letter of your last name',{name:'lastInitial',maxlength:'1',autocapitalize:'characters',required:true}),
+    field('Last name',{name:'lastName',autocomplete:'family-name',maxlength:'40',required:true}),
     field('School',{name:'school',autocomplete:'organization',maxlength:'80',required:true})],
    'Create my code',async(f,error)=>{
-    const v=n=>f.elements[n].value.trim(),student={firstName:v('firstName'),lastInitial:v('lastInitial'),school:v('school')};
-    if(!student.firstName||!student.lastInitial||student.school.length<2){error.textContent='Fill in all three, please.';return;}
+    const v=n=>f.elements[n].value.trim(),student={firstName:v('firstName'),lastName:v('lastName'),school:v('school')};
+    if(!student.firstName||!student.lastName||student.school.length<2){error.textContent='Fill in all three, please.';return;}
     let r;try{apply(null);store.set(PENDING,null);r=await fetch('/api/journey/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...student,data:collect(),percent:0})});}
     catch(e){offline(error);return;}
     const body=await r.json().catch(()=>({}));if(!r.ok){if(r.status>=500)offline(error);else error.textContent=body.error||'Something went wrong. Try again.';return;}

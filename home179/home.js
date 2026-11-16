@@ -4,7 +4,7 @@
  * fair keeps loading behind it.
  * - New Game: Choose Your Character. Above a 3D carousel of the eight kid
  *   characters (players177/kid01-08.glb, drawn live with the game's own Draco
- *   decoder) the student types a first name, last initial and school; "Let's
+ *   decoder) the student types a first name, last name and school; "Let's
  *   go" makes their journey code (journey166) and remembers the character.
  * - Resume Game: continue this computer's journey or type a code; progress
  *   and character come back together. An older journey with no character
@@ -143,7 +143,7 @@ window.Home179=(()=>{
   const field=(cls,label,props)=>h('label',{class:cls},label,h('input',props));
   ui.form=h('form',{class:'h-who',novalidate:true,onsubmit:e=>{e.preventDefault();go();}},
    field('w-first','First name',{name:'firstName',autocomplete:'given-name',maxlength:'30'}),
-   field('w-initial','Last initial',{name:'lastInitial',maxlength:'1',autocapitalize:'characters'}),
+   field('w-last','Last name',{name:'lastName',autocomplete:'family-name',maxlength:'40'}),
    field('w-school','School',{name:'school',autocomplete:'organization',maxlength:'80'}),
    h('button',{type:'submit',hidden:true}));
   ui.note=h('p',{class:'h-who-note'});
@@ -218,9 +218,9 @@ window.Home179=(()=>{
   if(ui.busy)return;ui.error.textContent='';
   const f=ui.form.elements,v=n=>f[n].value.trim();
   if(!pickOnly){
-   const student={firstName:v('firstName'),lastInitial:v('lastInitial').toUpperCase(),school:v('school')};
-   const missing=!student.firstName?'firstName':!student.lastInitial?'lastInitial':student.school.length<2?'school':null;
-   if(missing){ui.error.textContent='Type your first name, last initial and school above, then press Let’s go.';f[missing].focus();return;}
+   const student={firstName:v('firstName'),lastName:v('lastName'),school:v('school')};
+   const missing=!student.firstName?'firstName':!student.lastName?'lastName':student.school.length<2?'school':null;
+   if(missing){ui.error.textContent='Type your first name, last name and school above, then press Let’s go.';f[missing].focus();return;}
    busy(true,'Making your code...');
    try{
     const J=await journey();const r=await J.startNew(student,chosen);
